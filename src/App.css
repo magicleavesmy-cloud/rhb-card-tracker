@@ -1,0 +1,153 @@
+*{box-sizing:border-box}body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#05070b;color:#f8fafc}.app-shell{min-height:100vh;display:grid;grid-template-columns:250px 1fr;background:radial-gradient(circle at top left,#0b3b91 0,#05070b 34%,#05070b 100%)}.sidebar{border-right:1px solid #243041;background:#07101bcc;padding:20px;position:sticky;top:0;height:100vh}.brand{display:flex;gap:12px;align-items:center;margin-bottom:28px}.brand svg{color:#2d7dff}.brand b{display:block;letter-spacing:.5px}.brand span{font-size:12px;color:#9ca3af}.nav-btn{width:100%;border:1px solid transparent;background:transparent;color:#d1d5db;border-radius:16px;padding:14px 16px;margin-bottom:10px;display:flex;gap:12px;align-items:center;font-weight:800;cursor:pointer}.nav-btn svg{width:22px}.nav-btn.active{background:linear-gradient(135deg,#0d47a1,#061e48);color:#fff;border-color:#2d7dff;box-shadow:0 0 24px #1d4ed855}.main{padding:28px 28px 110px}.topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px}.eyebrow{font-size:12px;color:#7dd3fc;font-weight:900;letter-spacing:1.4px;margin:0 0 4px}h1{margin:0;font-size:32px}h2{margin:0 0 16px}.date-pill{border:1px solid #334155;border-radius:14px;padding:12px 16px;background:#0b1220}.grid.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}.summary-card,.panel,.history-card{background:linear-gradient(145deg,#111827cc,#07101bcc);border:1px solid #263445;border-radius:20px;box-shadow:inset 0 1px 0 #ffffff12,0 18px 45px #0000003d;backdrop-filter:blur(16px)}.summary-card{min-height:126px;padding:22px;display:flex;justify-content:space-between;align-items:center;position:relative;overflow:hidden}.summary-card:after{content:"";position:absolute;left:22px;right:22px;bottom:0;height:2px;background:currentColor;filter:blur(.3px)}.summary-card p{margin:0 0 12px;color:#e5e7eb}.summary-card h3{margin:0;font-size:28px}.summary-card.blue{color:#2d7dff}.summary-card.orange{color:#fb923c}.summary-card.cyan{color:#22d3ee}.summary-card.purple{color:#a855f7}.summary-card.green{color:#4ade80}.summary-card.yellow{color:#facc15}.icon-badge{min-width:70px;height:58px;border-radius:16px;display:grid;place-items:center;background:#ffffff08;font-weight:1000;font-size:18px}.panel{max-width:760px;padding:22px}.green-panel{border-color:#14532d}.date-input,input{width:100%;background:#0b1220;border:1px solid #334155;color:#f8fafc;border-radius:12px;padding:12px 14px;font-size:16px;outline:none}.date-input{margin-bottom:18px}.input-row{display:grid;gap:14px;align-items:end;border-bottom:1px solid #263445;padding:13px 0}.input-row.three{grid-template-columns:130px 1fr 1fr}.input-row label{font-size:12px;color:#cbd5e1;font-weight:800}.input-row input{margin-top:7px}.received-row{grid-template-columns:110px 1fr 220px}.brand{font-weight:1000;font-size:22px;margin:0}.brand.visa{color:#3b82f6}.brand.mc{color:#fb923c}.brand.md{color:#38bdf8;font-size:17px}.total-bar{display:flex;justify-content:space-between;align-items:center;margin:16px 0 12px;border:1px solid #334155;border-radius:14px;padding:16px;background:#111827}.total-bar b{font-size:24px}.total-bar.purple b{color:#a855f7}.total-bar.green b{color:#4ade80}.primary{width:100%;border:0;border-radius:14px;padding:15px 18px;background:linear-gradient(135deg,#7c3aed,#0066ff);color:white;font-weight:1000;font-size:15px;cursor:pointer;box-shadow:0 0 28px #2563eb55}.primary.green{background:linear-gradient(135deg,#16a34a,#00b887);box-shadow:0 0 28px #22c55e44}.history-title{margin:22px 0 12px}.history-card{position:relative;padding:18px;margin-bottom:12px}.history-card b{color:#60a5fa}.green-history b{color:#4ade80}.history-card p{margin:8px 0;color:#e5e7eb}.history-actions{position:absolute;right:12px;top:12px;display:flex;gap:8px}.history-actions button{border:0;background:#ffffff00;color:#60a5fa;cursor:pointer}.history-actions button:last-child{color:#f43f5e}.mini{display:inline-block;font-size:10px;font-weight:1000;width:34px}.mini.visa{color:#3b82f6}.mini.mc{color:#fb923c}.mini.md{color:#38bdf8}.total-text{display:block;margin-top:8px;color:#a855f7}.green-text{color:#4ade80}.bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;padding:10px;background:#07101bf2;border-top:1px solid #263445;backdrop-filter:blur(16px);z-index:9}.bottom-nav .nav-btn{margin:0;justify-content:center;flex-direction:column;gap:4px;padding:8px;font-size:11px}.bottom-nav .nav-btn svg{width:20px}.bottom-nav .nav-btn.active{box-shadow:none;background:#0b2555}
+@media(max-width:900px){.app-shell{display:block}.sidebar{display:none}.main{padding:18px 14px 100px}.topbar{align-items:flex-start;gap:12px}.date-pill{font-size:12px;padding:10px}.grid.cards{grid-template-columns:1fr}.summary-card{min-height:104px}.summary-card h3{font-size:25px}.panel{max-width:none;padding:16px}.input-row.three{grid-template-columns:1fr}.received-row{grid-template-columns:1fr}.bottom-nav{display:grid;grid-template-columns:repeat(3,1fr)}h1{font-size:26px}}
+
+.logo-badge {
+  min-width: 72px;
+  min-height: 58px;
+  padding: 8px 10px;
+  border-radius: 18px;
+  background: rgba(255,255,255,.08);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logo-badge.small {
+  min-width: 88px;
+  min-height: 40px;
+  background: transparent;
+  padding: 0;
+  justify-content: flex-start;
+}
+
+.logo-badge.mini-logo {
+  min-width: 30px;
+  min-height: 18px;
+  border-radius: 6px;
+  padding: 1px 3px;
+  background: transparent;
+  vertical-align: middle;
+}
+
+.brand-logo {
+  max-width: 86px;
+  max-height: 34px;
+  object-fit: contain;
+  display: block;
+}
+
+.logo-badge.small .brand-logo {
+  max-width: 82px;
+  max-height: 30px;
+}
+
+.logo-badge.mini-logo .brand-logo {
+  max-width: 28px;
+  max-height: 14px;
+}
+
+.logo-badge {
+  background: rgba(255,255,255,.16) !important;
+  min-width: 86px !important;
+  min-height: 58px !important;
+}
+
+.brand-logo {
+  max-width: 78px !important;
+  max-height: 42px !important;
+  opacity: 1 !important;
+  filter: brightness(1.35) contrast(1.25) saturate(1.2);
+}
+
+.logo-badge.small {
+  background: rgba(255,255,255,.10) !important;
+  min-width: 115px !important;
+  min-height: 46px !important;
+  padding: 6px 10px !important;
+}
+
+.logo-badge.small .brand-logo {
+  max-width: 105px !important;
+  max-height: 38px !important;
+}
+
+.logo-badge.mini-logo {
+  min-width: 52px !important;
+  min-height: 24px !important;
+  background: rgba(255,255,255,.10) !important;
+}
+
+.logo-badge.mini-logo .brand-logo {
+  max-width: 48px !important;
+  max-height: 20px !important;
+}
+
+.logo-badge {
+  background: linear-gradient(145deg, #ffffff, #dfe6f1) !important;
+  border: 1px solid rgba(255,255,255,.8) !important;
+  box-shadow: inset 0 2px 8px rgba(255,255,255,.8), 0 8px 18px rgba(0,0,0,.35) !important;
+}
+
+
+/* FINAL LOGO GLASS OVERRIDE */
+.logo-badge,
+.logo-badge.small,
+.logo-badge.mini-logo {
+  background: rgba(255,255,255,0.10) !important;
+  background-image: none !important;
+  border: 1px solid rgba(255,255,255,0.18) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.20),
+    0 8px 20px rgba(0,0,0,0.30) !important;
+  backdrop-filter: blur(18px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(160%) !important;
+}
+
+
+/* COMPACT MOBILE CARDS */
+@media (max-width: 920px) {
+  .summary-grid {
+    gap: 10px !important;
+  }
+
+  .card {
+    min-height: 88px !important;
+    padding: 14px 20px !important;
+    border-radius: 18px !important;
+  }
+
+  .card p {
+    font-size: 14px !important;
+  }
+
+  .card h3 {
+    margin-top: 8px !important;
+    font-size: 22px !important;
+  }
+
+  .logo-badge {
+    min-width: 70px !important;
+    min-height: 46px !important;
+    border-radius: 15px !important;
+    padding: 6px 8px !important;
+  }
+
+  .brand-logo {
+    max-width: 62px !important;
+    max-height: 28px !important;
+  }
+
+  .workspace {
+    padding-bottom: 72px !important;
+  }
+
+  .bottom-tabs {
+    bottom: 8px !important;
+    padding: 6px !important;
+  }
+
+  .bottom-tabs button {
+    min-height: 42px !important;
+    font-size: 11px !important;
+  }
+}
