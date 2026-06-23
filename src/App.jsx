@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Banknote, Calculator, CreditCard, Home, Landmark, Pencil, Plus, ReceiptText, Trash2 } from 'lucide-react'
+import { CreditCard, Home, ReceiptText, Landmark, Pencil, Trash2 } from 'lucide-react'
 
 const money = new Intl.NumberFormat('en-MY', { style: 'currency', currency: 'MYR' })
 const today = () => new Date().toISOString().slice(0, 10)
@@ -22,6 +22,10 @@ const initialReceivedForm = {
 }
 
 const number = (value) => Number(value || 0)
+
+function AppIcon({ name, className = "custom-icon" }) {
+  return <img src={`/icons/${name}.png`} className={className} alt="" />
+}
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard')
@@ -159,9 +163,9 @@ function Dashboard({ summary }) {
     <SummaryCard label="Total Visa Sales" value={summary.visa} tone="blue" icon={<BrandLogo type="visa" />} />
     <SummaryCard label="Total Master Sales" value={summary.master} tone="orange" icon={<BrandLogo type="mastercard" />} />
     <SummaryCard label="Total MyDebit Sales" value={summary.mydebit} tone="cyan" icon={<BrandLogo type="mydebit" />} />
-    <SummaryCard label="Total Terminal Total" value={summary.total} tone="purple" icon={<Calculator />} />
-    <SummaryCard label="Total RHB Received" value={summary.received} tone="green" icon={<Landmark />} />
-    <SummaryCard label="Total Difference / Charges" value={summary.difference} tone="yellow" icon={<Banknote />} />
+    <SummaryCard label="Total Terminal Total" value={summary.total} tone="purple" icon={<AppIcon name="total-terminal-sales" className="card-icon" />} />
+    <SummaryCard label="Total RHB Received" value={summary.received} tone="green" icon={<AppIcon name="total-rhb-received" className="card-icon" />} />
+    <SummaryCard label="Total Difference / Charges" value={summary.difference} tone="yellow" icon={<AppIcon name="total-difference" className="card-icon" />} />
   </section>
 }
 
@@ -196,8 +200,8 @@ function RhbReceived({ form, setForm, total, onSubmit, records, onEdit, onDelete
 function TerminalRow({ brand, label, entries, amount, form, setForm }) {
   return <div className="input-row three">
     <div className="brand">{brand}</div>
-    <label>Entries (Qty)<input type="number" value={form[entries]} onChange={(e) => setForm({ ...form, [entries]: e.target.value })} /></label>
-    <label>Amount (RM)<input type="number" value={form[amount]} onChange={(e) => setForm({ ...form, [amount]: e.target.value })} /></label>
+    <label>Entries (Qty)<input type="text" inputMode="numeric" value={form[entries]} onChange={(e) => setForm({ ...form, [entries]: e.target.value })} /></label>
+    <label>Amount (RM)<input type="text" inputMode="numeric" value={form[amount]} onChange={(e) => setForm({ ...form, [amount]: e.target.value })} /></label>
   </div>
 }
 
@@ -205,7 +209,7 @@ function ReceivedRow({ brand, label, field, form, setForm }) {
   return <div className="input-row received-row">
     <div className="brand">{brand}</div>
     <span>{label}</span>
-    <input type="number" value={form[field]} onChange={(e) => setForm({ ...form, [field]: e.target.value })} />
+    <input type="text" inputMode="numeric" value={form[field]} onChange={(e) => setForm({ ...form, [field]: e.target.value })} />
   </div>
 }
 
