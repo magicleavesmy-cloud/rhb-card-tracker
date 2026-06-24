@@ -502,13 +502,15 @@ function Dashboard({ summary, currentMonthDays }) {
           <div className="last-day-card" key={row.date}>
             <div className="last-day-top">
               <b>{compactDate(row.date)}</b>
-              <span className={`status-dot ${row.hasTerminal && row.hasReceived ? 'complete' : row.hasRecords ? 'partial' : 'missing'}`} />
             </div>
-            <div className="last-day-chips">
-              <span className={`metric-chip terminal ${row.hasTerminal ? '' : 'missing'}`}>{row.hasTerminal ? money.format(row.terminalTotal) : '-'}</span>
-              <span className={`metric-chip received ${row.hasReceived ? '' : 'missing'}`}>{row.hasReceived ? money.format(row.receivedTotal) : '-'}</span>
-              <span className={`metric-chip commission ${row.hasRecords ? '' : 'missing'}`}>{row.hasRecords ? money.format(row.commission) : '-'}</span>
-              <span className="metric-chip percent">{formatRate(row.percentage)}</span>
+            <div className="last-day-metrics">
+              <div className="last-day-chips">
+                <span className={`metric-chip terminal ${row.hasTerminal ? '' : 'missing'}`}>{row.hasTerminal ? money.format(row.terminalTotal) : '-'}</span>
+                <span className={`metric-chip received ${row.hasReceived ? '' : 'missing'}`}>{row.hasReceived ? money.format(row.receivedTotal) : '-'}</span>
+                <span className={`metric-chip commission ${row.hasRecords ? '' : 'missing'}`}>{row.hasRecords ? money.format(row.commission) : '-'}</span>
+                <span className="metric-chip percent">{formatRate(row.percentage)}</span>
+              </div>
+              <span className={`status-dot ${row.hasTerminal && row.hasReceived ? 'complete' : row.hasRecords ? 'partial' : 'missing'}`} />
             </div>
           </div>
         ))}
