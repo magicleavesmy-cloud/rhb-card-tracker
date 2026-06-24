@@ -240,8 +240,12 @@
 }
 /* GLOBAL SCALE DOWN */
 .app-shell {
-  transform: scale(0.5);
-  transform-origin: top left;
-  width: 200%;
-  min-height: 200vh;
+  zoom: 0.75;
+  min-height: 100vh;
+}
+
+@media (max-width: 900px) {
+  .app-shell {
+    zoom: 1;
+  }
 }
