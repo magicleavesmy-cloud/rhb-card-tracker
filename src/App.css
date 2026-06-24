@@ -240,7 +240,7 @@
 }
 /* GLOBAL SCALE DOWN */
 .app-shell {
-  zoom: 0.55;
+  zoom: 1;
   min-height: 100vh;
 }
 
@@ -254,7 +254,7 @@
 }
 
 .dashboard-summary-screen {
-  min-height: calc(100vh - 76px);
+  min-height: calc(100vh - 156px);
   display: flex;
   align-items: center;
 }
@@ -587,7 +587,7 @@
   }
 
   .dashboard-summary-screen {
-    min-height: calc(100vh - 76px);
+    min-height: calc(100vh - 156px);
     align-items: start;
     padding-bottom: 12px;
   }
@@ -633,5 +633,99 @@
 
   .last-days-panel {
     margin-top: 6px;
+  }
+}
+
+@media (max-width: 900px) {
+  .main {
+    padding: 10px 9px 70px;
+  }
+
+  .topbar {
+    margin-bottom: 8px;
+    gap: 8px;
+  }
+
+  .topbar-actions {
+    gap: 5px;
+  }
+
+  .topbar-btn,
+  .date-pill,
+  .sync-status {
+    min-height: 30px;
+    padding: 5px 7px;
+    border-radius: 10px;
+    font-size: 10px;
+  }
+
+  .eyebrow {
+    font-size: 10px;
+    margin-bottom: 2px;
+  }
+
+  h1 {
+    font-size: 22px;
+  }
+
+  .dashboard-summary-screen {
+    min-height: calc(100vh - 126px);
+    padding-bottom: 8px;
+  }
+
+  .dashboard-view {
+    gap: 16px;
+  }
+
+  .dashboard-view .grid.cards {
+    gap: 6px;
+  }
+
+  .dashboard-view .summary-card {
+    min-height: 54px;
+    padding: 7px 9px;
+    border-radius: 11px;
+  }
+
+  .dashboard-view .summary-card p {
+    margin-bottom: 3px;
+    font-size: 9px;
+    line-height: 1.1;
+  }
+
+  .dashboard-view .summary-card h3 {
+    font-size: 15px;
+    line-height: 1.05;
+  }
+
+  .dashboard-view .summary-card .icon-badge {
+    width: 36px !important;
+    min-width: 36px !important;
+    height: 32px !important;
+    border-radius: 9px !important;
+  }
+
+  .dashboard-view .logo-badge {
+    min-width: 36px !important;
+    min-height: 28px !important;
+    padding: 3px 4px !important;
+  }
+
+  .dashboard-view .brand-logo {
+    max-width: 32px !important;
+    max-height: 20px !important;
+  }
+
+  .last-days-panel {
+    margin-top: 0;
+    padding: 11px;
+  }
+
+  .last-day-card {
+    padding: 8px 9px;
+  }
+
+  .bottom-nav {
+    padding: 7px;
   }
 }
