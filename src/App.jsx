@@ -75,7 +75,7 @@ const buildChargeAnalytics = (terminalRecords, receivedRecords) => {
 
   return { byDate, monthly }
 }
-const buildLastTenDays = (terminalRecords, receivedRecords) => {
+const buildCurrentMonthDays = (terminalRecords, receivedRecords) => {
   const terminalByDate = new Map()
   const receivedByDate = new Map()
 
@@ -88,9 +88,11 @@ const buildLastTenDays = (terminalRecords, receivedRecords) => {
     receivedByDate.set(record.date, number(receivedByDate.get(record.date)) + receivedRecordTotal(record))
   })
 
-  return Array.from({ length: 10 }, (_, index) => {
-    const date = new Date()
-    date.setDate(date.getDate() - index)
+  const now = new Date()
+  const dayCount = now.getDate()
+
+  return Array.from({ length: dayCount }, (_, index) => {
+    const date = new Date(now.getFullYear(), now.getMonth(), dayCount - index)
     const dateKey = date.toISOString().slice(0, 10)
     const hasTerminal = terminalByDate.has(dateKey)
     const hasReceived = receivedByDate.has(dateKey)
@@ -209,6 +211,63 @@ export default function App() {
     persistRecords(terminalRecords, next)
   }
 
+  const exportBackup = () => {
+    const backup = {
+      appName: 'Magic-RHB Sales',
+      exportedAt: new Date().toISOString(),
+      terminalRecords,
+      receivedRecords,
+    }
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `magic-rhb-sales-backup-${today()}.json`
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
+  }
+
+  const importBackup = async (file) => {
+    if (!file) return
+
+    let backup
+    try {
+      backup = JSON.parse(await file.text())
+    } catch (error) {
+      console.error('Backup import failed:', error)
+      alert('Backup import failed. Please choose a valid JSON backup file.')
+      return
+    }
+
+    if (!Array.isArray(backup.terminalRecords) || !Array.isArray(backup.receivedRecords)) {
+      alert('Invalid backup file.')
+      return
+    }
+
+    const nextTerminal = backup.terminalRecords
+    const nextReceived = backup.receivedRecords
+    setTerminalRecords(nextTerminal)
+    setReceivedRecords(nextReceived)
+    persistLocal(nextTerminal, nextReceived)
+
+    if (recordsDoc && navigator.onLine) {
+      try {
+        setSyncStatus('Syncing...')
+        await syncToCloud(nextTerminal, nextReceived)
+        setSyncStatus('Synced')
+      } catch (error) {
+        console.error('Backup cloud sync failed:', error)
+        setSyncStatus('Imported locally, cloud pending')
+      }
+    } else {
+      setSyncStatus('Imported locally, cloud pending')
+    }
+
+    alert('Backup imported successfully.')
+  }
+
   const syncNow = async () => {
     if (!recordsDoc) {
       setSyncStatus('Add Firebase env to enable sync')
@@ -234,7 +293,7 @@ export default function App() {
   const terminalTotal = useMemo(() => visaMasterTotal + number(terminalForm.mydebitAmount), [terminalForm, visaMasterTotal])
   const receivedTotal = useMemo(() => number(receivedForm.cardReceived) + number(receivedForm.mydebitReceived), [receivedForm])
   const chargeAnalytics = useMemo(() => buildChargeAnalytics(terminalRecords, receivedRecords), [terminalRecords, receivedRecords])
-  const lastTenDays = useMemo(() => buildLastTenDays(terminalRecords, receivedRecords), [terminalRecords, receivedRecords])
+  const currentMonthDays = useMemo(() => buildCurrentMonthDays(terminalRecords, receivedRecords), [terminalRecords, receivedRecords])
 
   const summary = useMemo(() => {
     const terminal = terminalRecords.reduce((acc, r) => {
@@ -322,7 +381,7 @@ export default function App() {
           </div>
         </header>
 
-        {activeTab === 'dashboard' && <Dashboard summary={summary} lastTenDays={lastTenDays} />}
+        {activeTab === 'dashboard' && <Dashboard summary={summary} currentMonthDays={currentMonthDays} />}
         {activeTab === 'terminal' && (
           <TerminalSales
             form={terminalForm}
@@ -347,6 +406,8 @@ export default function App() {
             chargesByDate={chargeAnalytics.byDate}
             onEdit={editReceived}
             onDelete={(id) => saveReceived(receivedRecords.filter((r) => r.id !== id))}
+            onExportBackup={exportBackup}
+            onImportBackup={importBackup}
             editing={!!editingReceivedId}
           />
         )}
@@ -361,7 +422,7 @@ export default function App() {
   )
 }
 
-function Dashboard({ summary, lastTenDays }) {
+function Dashboard({ summary, currentMonthDays }) {
   return <div className="dashboard-view dashboard-page">
     <div className="dashboard-summary-screen">
       <section className="grid cards">
@@ -371,14 +432,14 @@ function Dashboard({ summary, lastTenDays }) {
         <SummaryCard label="Total Terminal Total" value={summary.total} tone="purple" icon={<span style={{ fontSize: "30px" }}>💳</span>} />
         <SummaryCard label="Total RHB Received" value={summary.received} tone="green" icon={<span style={{ fontSize: "30px" }}>🏦</span>} />
         <SummaryCard label="Total Difference / Charges" value={summary.difference} tone="yellow" icon={<span style={{ fontSize: "30px" }}>📊</span>} />
-        <SummaryCard label="Monthly Charges" value={summary.monthlyCharges} tone="yellow" icon={<span style={{ fontSize: "30px" }}>📊</span>} />
+        <SummaryCard label="Monthly Charges" value={summary.monthlyCharges} tone="yellow" icon={<span className="gold-dollar-icon">💲</span>} />
         <SummaryCard label="Monthly Charge Rate" value={formatRate(summary.monthlyChargeRate)} tone="green" icon={<span style={{ fontSize: "30px" }}>%</span>} raw />
       </section>
     </div>
     <section className="last-days-panel">
-      <h2>Last 10 Days</h2>
+      <h2>June Terminal Sales</h2>
       <div className="last-days-list">
-        {lastTenDays.map((row) => (
+        {currentMonthDays.map((row) => (
           <div className="last-day-card" key={row.date}>
             <div className="last-day-top">
               <b>{compactDate(row.date)}</b>
@@ -417,11 +478,12 @@ function TerminalSales({ form, setForm, total, visaMasterTotal, onSubmit, record
   </section>
 }
 
-function RhbReceived({ form, setForm, total, onSubmit, records, chargesByDate, onEdit, onDelete, editing }) {
+function RhbReceived({ form, setForm, total, onSubmit, records, chargesByDate, onEdit, onDelete, onExportBackup, onImportBackup, editing }) {
   const sortedRecords = [...records].sort((a, b) => {
     const dateOrder = String(b.date || '').localeCompare(String(a.date || ''))
     return dateOrder || number(b.id) - number(a.id)
   })
+  const fileInputRef = useRef(null)
 
   return <section className="panel green-panel received-page">
     <h2>Record amount received from RHB</h2>
@@ -432,6 +494,23 @@ function RhbReceived({ form, setForm, total, onSubmit, records, chargesByDate, o
     <button className="primary green" onClick={onSubmit}>{editing ? 'Update Received' : 'Save Received'}</button>
     <HistoryTitle />
     {sortedRecords.map((r) => <ReceivedHistory key={r.id} r={r} charges={chargesByDate[r.date]} onEdit={onEdit} onDelete={onDelete} />)}
+    <section className="backup-section">
+      <h3>Backup</h3>
+      <div className="backup-actions">
+        <button type="button" onClick={onExportBackup}>Export Backup</button>
+        <button type="button" onClick={() => fileInputRef.current?.click()}>Import Backup</button>
+      </div>
+      <input
+        ref={fileInputRef}
+        className="backup-file"
+        type="file"
+        accept="application/json,.json"
+        onChange={(event) => {
+          onImportBackup(event.target.files?.[0])
+          event.target.value = ''
+        }}
+      />
+    </section>
   </section>
 }
 
