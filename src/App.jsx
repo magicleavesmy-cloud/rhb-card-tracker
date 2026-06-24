@@ -398,6 +398,11 @@ function Dashboard({ summary, lastTenDays }) {
 }
 
 function TerminalSales({ form, setForm, total, visaMasterTotal, onSubmit, records, chargesByDate, onEdit, onDelete, editing }) {
+  const sortedRecords = [...records].sort((a, b) => {
+    const dateOrder = String(b.date || '').localeCompare(String(a.date || ''))
+    return dateOrder || number(b.id) - number(a.id)
+  })
+
   return <section className="panel terminal-page">
     <h2>Record daily terminal settlement</h2>
     <input className="date-input" type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
@@ -408,11 +413,16 @@ function TerminalSales({ form, setForm, total, visaMasterTotal, onSubmit, record
     <TotalBar label="Total Amount (Auto)" value={total} tone="purple" />
     <button className="primary" onClick={onSubmit}>{editing ? 'Update Settlement' : 'Save Settlement'}</button>
     <HistoryTitle />
-    {records.map((r) => <TerminalHistory key={r.id} r={r} charges={chargesByDate[r.date]} onEdit={onEdit} onDelete={onDelete} />)}
+    {sortedRecords.map((r) => <TerminalHistory key={r.id} r={r} charges={chargesByDate[r.date]} onEdit={onEdit} onDelete={onDelete} />)}
   </section>
 }
 
 function RhbReceived({ form, setForm, total, onSubmit, records, chargesByDate, onEdit, onDelete, editing }) {
+  const sortedRecords = [...records].sort((a, b) => {
+    const dateOrder = String(b.date || '').localeCompare(String(a.date || ''))
+    return dateOrder || number(b.id) - number(a.id)
+  })
+
   return <section className="panel green-panel received-page">
     <h2>Record amount received from RHB</h2>
     <input className="date-input" type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
@@ -421,7 +431,7 @@ function RhbReceived({ form, setForm, total, onSubmit, records, chargesByDate, o
     <TotalBar label="Total Received (Auto)" value={total} tone="green" />
     <button className="primary green" onClick={onSubmit}>{editing ? 'Update Received' : 'Save Received'}</button>
     <HistoryTitle />
-    {records.map((r) => <ReceivedHistory key={r.id} r={r} charges={chargesByDate[r.date]} onEdit={onEdit} onDelete={onDelete} />)}
+    {sortedRecords.map((r) => <ReceivedHistory key={r.id} r={r} charges={chargesByDate[r.date]} onEdit={onEdit} onDelete={onDelete} />)}
   </section>
 }
 

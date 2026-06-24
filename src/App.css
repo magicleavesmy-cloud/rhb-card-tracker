@@ -562,6 +562,12 @@
   border-top: 1px solid #263445;
 }
 
+.charges-row span,
+.charges-row b {
+  color: #ef4444;
+  text-shadow: 0 0 8px rgba(239,68,68,0.55);
+}
+
 .history-total {
   margin-top: 10px;
   color: #a855f7;
