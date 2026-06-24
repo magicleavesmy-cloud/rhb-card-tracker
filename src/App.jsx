@@ -455,6 +455,7 @@ function TerminalHistory({ r, charges, onEdit, onDelete }) {
     <b className="history-date">{compactDate(r.date)}</b>
     <div className="history-money-row"><span>Visa</span><b>{r.visaEntries} | {money.format(r.visaAmount)}</b></div>
     <div className="history-money-row"><span>Master</span><b>{r.masterEntries} | {money.format(r.masterAmount)}</b></div>
+    <div className="history-visa-master-total"><span>TOTAL</span><b>{money.format(number(r.visaAmount) + number(r.masterAmount))}</b></div>
     <div className="history-money-row"><span>MyDebit</span><b>{r.mydebitEntries} | {money.format(r.mydebitAmount)}</b></div>
     <ChargesDetails charges={charges} />
     <strong className="total-text history-total"><span>TOTAL</span><b>{money.format(r.total)}</b></strong>

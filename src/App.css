@@ -576,6 +576,27 @@
   color: #4ade80;
 }
 
+.history-visa-master-total {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: baseline;
+  margin: 8px 0;
+  color: #4ade80;
+  text-shadow: 0 0 10px #22c55e88;
+  font-size: 13px;
+  font-weight: 1000;
+}
+
+.history-visa-master-total span {
+  min-width: 96px;
+}
+
+.history-visa-master-total b {
+  color: inherit;
+  text-align: right;
+}
+
 @media (max-width: 900px) {
   .main {
     padding: 14px 12px 82px;
@@ -991,6 +1012,16 @@
     gap: 7px;
     margin: 4px 0;
     font-size: 7px;
+  }
+
+  .terminal-page .history-visa-master-total {
+    gap: 7px;
+    margin: 4px 0;
+    font-size: 6.5px;
+  }
+
+  .terminal-page .history-visa-master-total span {
+    min-width: 48px;
   }
 
   .terminal-page .history-money-row span,
