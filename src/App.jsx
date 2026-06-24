@@ -74,6 +74,34 @@ const buildChargeAnalytics = (terminalRecords, receivedRecords) => {
 
   return { byDate, monthly }
 }
+const buildLastTenDays = (terminalRecords, receivedRecords) => {
+  const terminalByDate = new Map()
+  const receivedByDate = new Map()
+  const dates = new Set()
+
+  terminalRecords.forEach((record) => {
+    if (!record.date) return
+    dates.add(record.date)
+    terminalByDate.set(record.date, number(terminalByDate.get(record.date)) + number(record.total))
+  })
+  receivedRecords.forEach((record) => {
+    if (!record.date) return
+    dates.add(record.date)
+    receivedByDate.set(record.date, number(receivedByDate.get(record.date)) + receivedRecordTotal(record))
+  })
+
+  return Array.from(dates)
+    .sort((a, b) => b.localeCompare(a))
+    .slice(0, 10)
+    .map((date) => {
+      const terminalTotal = number(terminalByDate.get(date))
+      const receivedTotal = number(receivedByDate.get(date))
+      const commission = terminalTotal - receivedTotal
+      const percentage = terminalTotal > 0 ? (commission / terminalTotal) * 100 : 0
+
+      return { date, terminalTotal, receivedTotal, commission, percentage }
+    })
+}
 const readStoredRecords = (key) => {
   try {
     return JSON.parse(localStorage.getItem(key) || '[]')
@@ -197,6 +225,7 @@ export default function App() {
   const terminalTotal = useMemo(() => number(terminalForm.visaAmount) + number(terminalForm.masterAmount) + number(terminalForm.mydebitAmount), [terminalForm])
   const receivedTotal = useMemo(() => number(receivedForm.cardReceived) + number(receivedForm.mydebitReceived), [receivedForm])
   const chargeAnalytics = useMemo(() => buildChargeAnalytics(terminalRecords, receivedRecords), [terminalRecords, receivedRecords])
+  const lastTenDays = useMemo(() => buildLastTenDays(terminalRecords, receivedRecords), [terminalRecords, receivedRecords])
 
   const summary = useMemo(() => {
     const terminal = terminalRecords.reduce((acc, r) => {
@@ -284,7 +313,7 @@ export default function App() {
           </div>
         </header>
 
-        {activeTab === 'dashboard' && <Dashboard summary={summary} />}
+        {activeTab === 'dashboard' && <Dashboard summary={summary} lastTenDays={lastTenDays} />}
         {activeTab === 'terminal' && (
           <TerminalSales
             form={terminalForm}
@@ -322,17 +351,40 @@ export default function App() {
   )
 }
 
-function Dashboard({ summary }) {
-  return <section className="grid cards">
-    <SummaryCard label="Total Visa Sales" value={summary.visa} tone="blue" icon={<BrandLogo type="visa" />} />
-    <SummaryCard label="Total Master Sales" value={summary.master} tone="orange" icon={<BrandLogo type="mastercard" />} />
-    <SummaryCard label="Total MyDebit Sales" value={summary.mydebit} tone="cyan" icon={<BrandLogo type="mydebit" />} />
-    <SummaryCard label="Total Terminal Total" value={summary.total} tone="purple" icon={<span style={{ fontSize: "30px" }}>💳</span>} />
-    <SummaryCard label="Total RHB Received" value={summary.received} tone="green" icon={<span style={{ fontSize: "30px" }}>🏦</span>} />
-    <SummaryCard label="Total Difference / Charges" value={summary.difference} tone="yellow" icon={<span style={{ fontSize: "30px" }}>📊</span>} />
-    <SummaryCard label="Monthly Charges" value={summary.monthlyCharges} tone="yellow" icon={<span style={{ fontSize: "30px" }}>📊</span>} />
-    <SummaryCard label="Monthly Charge Rate" value={formatRate(summary.monthlyChargeRate)} tone="green" icon={<span style={{ fontSize: "30px" }}>%</span>} raw />
-  </section>
+function Dashboard({ summary, lastTenDays }) {
+  return <div className="dashboard-view">
+    <section className="grid cards">
+      <SummaryCard label="Total Visa Sales" value={summary.visa} tone="blue" icon={<BrandLogo type="visa" />} />
+      <SummaryCard label="Total Master Sales" value={summary.master} tone="orange" icon={<BrandLogo type="mastercard" />} />
+      <SummaryCard label="Total MyDebit Sales" value={summary.mydebit} tone="cyan" icon={<BrandLogo type="mydebit" />} />
+      <SummaryCard label="Total Terminal Total" value={summary.total} tone="purple" icon={<span style={{ fontSize: "30px" }}>💳</span>} />
+      <SummaryCard label="Total RHB Received" value={summary.received} tone="green" icon={<span style={{ fontSize: "30px" }}>🏦</span>} />
+      <SummaryCard label="Total Difference / Charges" value={summary.difference} tone="yellow" icon={<span style={{ fontSize: "30px" }}>📊</span>} />
+      <SummaryCard label="Monthly Charges" value={summary.monthlyCharges} tone="yellow" icon={<span style={{ fontSize: "30px" }}>📊</span>} />
+      <SummaryCard label="Monthly Charge Rate" value={formatRate(summary.monthlyChargeRate)} tone="green" icon={<span style={{ fontSize: "30px" }}>%</span>} raw />
+    </section>
+    <section className="last-days-panel">
+      <h2>Last 10 Days</h2>
+      <div className="last-days-table">
+        <div className="last-days-row last-days-head">
+          <span>Date</span>
+          <span>Terminal Sales</span>
+          <span>RHB Received</span>
+          <span>Commission</span>
+          <span>%</span>
+        </div>
+        {lastTenDays.map((row) => (
+          <div className="last-days-row" key={row.date}>
+            <span>{niceDate(row.date)}</span>
+            <span>{money.format(row.terminalTotal)}</span>
+            <span>{money.format(row.receivedTotal)}</span>
+            <span>{money.format(row.commission)}</span>
+            <span>{formatRate(row.percentage)}</span>
+          </div>
+        ))}
+      </div>
+    </section>
+  </div>
 }
 
 function TerminalSales({ form, setForm, total, onSubmit, records, chargesByDate, onEdit, onDelete, editing }) {
