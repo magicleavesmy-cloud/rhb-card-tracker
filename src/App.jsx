@@ -361,16 +361,18 @@ export default function App() {
 
 function Dashboard({ summary, lastTenDays }) {
   return <div className="dashboard-view">
-    <section className="grid cards">
-      <SummaryCard label="Total Visa Sales" value={summary.visa} tone="blue" icon={<BrandLogo type="visa" />} />
-      <SummaryCard label="Total Master Sales" value={summary.master} tone="orange" icon={<BrandLogo type="mastercard" />} />
-      <SummaryCard label="Total MyDebit Sales" value={summary.mydebit} tone="cyan" icon={<BrandLogo type="mydebit" />} />
-      <SummaryCard label="Total Terminal Total" value={summary.total} tone="purple" icon={<span style={{ fontSize: "30px" }}>💳</span>} />
-      <SummaryCard label="Total RHB Received" value={summary.received} tone="green" icon={<span style={{ fontSize: "30px" }}>🏦</span>} />
-      <SummaryCard label="Total Difference / Charges" value={summary.difference} tone="yellow" icon={<span style={{ fontSize: "30px" }}>📊</span>} />
-      <SummaryCard label="Monthly Charges" value={summary.monthlyCharges} tone="yellow" icon={<span style={{ fontSize: "30px" }}>📊</span>} />
-      <SummaryCard label="Monthly Charge Rate" value={formatRate(summary.monthlyChargeRate)} tone="green" icon={<span style={{ fontSize: "30px" }}>%</span>} raw />
-    </section>
+    <div className="dashboard-summary-screen">
+      <section className="grid cards">
+        <SummaryCard label="Total Visa Sales" value={summary.visa} tone="blue" icon={<BrandLogo type="visa" />} />
+        <SummaryCard label="Total Master Sales" value={summary.master} tone="orange" icon={<BrandLogo type="mastercard" />} />
+        <SummaryCard label="Total MyDebit Sales" value={summary.mydebit} tone="cyan" icon={<BrandLogo type="mydebit" />} />
+        <SummaryCard label="Total Terminal Total" value={summary.total} tone="purple" icon={<span style={{ fontSize: "30px" }}>💳</span>} />
+        <SummaryCard label="Total RHB Received" value={summary.received} tone="green" icon={<span style={{ fontSize: "30px" }}>🏦</span>} />
+        <SummaryCard label="Total Difference / Charges" value={summary.difference} tone="yellow" icon={<span style={{ fontSize: "30px" }}>📊</span>} />
+        <SummaryCard label="Monthly Charges" value={summary.monthlyCharges} tone="yellow" icon={<span style={{ fontSize: "30px" }}>📊</span>} />
+        <SummaryCard label="Monthly Charge Rate" value={formatRate(summary.monthlyChargeRate)} tone="green" icon={<span style={{ fontSize: "30px" }}>%</span>} raw />
+      </section>
+    </div>
     <section className="last-days-panel">
       <h2>Last 10 Days</h2>
       <div className="last-days-list">
