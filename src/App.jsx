@@ -18,12 +18,20 @@ const initialTerminalForm = {
 
 const initialReceivedForm = {
   date: today(),
-  visaReceived: '',
-  masterReceived: '',
+  cardReceived: '',
   mydebitReceived: '',
 }
 
 const number = (value) => Number(value || 0)
+const cardReceivedAmount = (record) => (
+  record.cardReceived === undefined
+    ? number(record.visaReceived) + number(record.masterReceived)
+    : number(record.cardReceived)
+)
+const receivedRecordTotal = (record) => {
+  const calculatedTotal = cardReceivedAmount(record) + number(record.mydebitReceived)
+  return record.total === undefined ? calculatedTotal : number(record.total)
+}
 const readStoredRecords = (key) => {
   try {
     return JSON.parse(localStorage.getItem(key) || '[]')
@@ -145,7 +153,7 @@ export default function App() {
   }
 
   const terminalTotal = useMemo(() => number(terminalForm.visaAmount) + number(terminalForm.masterAmount) + number(terminalForm.mydebitAmount), [terminalForm])
-  const receivedTotal = useMemo(() => number(receivedForm.visaReceived) + number(receivedForm.masterReceived) + number(receivedForm.mydebitReceived), [receivedForm])
+  const receivedTotal = useMemo(() => number(receivedForm.cardReceived) + number(receivedForm.mydebitReceived), [receivedForm])
 
   const summary = useMemo(() => {
     const terminal = terminalRecords.reduce((acc, r) => {
@@ -156,7 +164,7 @@ export default function App() {
       return acc
     }, { visa: 0, master: 0, mydebit: 0, total: 0 })
 
-    const received = receivedRecords.reduce((acc, r) => acc + r.total, 0)
+    const received = receivedRecords.reduce((acc, r) => acc + receivedRecordTotal(r), 0)
     return { ...terminal, received, difference: terminal.total - received }
   }, [terminalRecords, receivedRecords])
 
@@ -182,8 +190,7 @@ export default function App() {
     const record = {
       id: editingReceivedId || Date.now(),
       date: receivedForm.date,
-      visaReceived: number(receivedForm.visaReceived),
-      masterReceived: number(receivedForm.masterReceived),
+      cardReceived: number(receivedForm.cardReceived),
       mydebitReceived: number(receivedForm.mydebitReceived),
       total: receivedTotal,
     }
@@ -200,7 +207,11 @@ export default function App() {
   }
 
   const editReceived = (record) => {
-    setReceivedForm({ ...record })
+    setReceivedForm({
+      date: record.date,
+      cardReceived: String(cardReceivedAmount(record) || ''),
+      mydebitReceived: String(record.mydebitReceived || ''),
+    })
     setEditingReceivedId(record.id)
     setActiveTab('received')
   }
@@ -289,8 +300,7 @@ function RhbReceived({ form, setForm, total, onSubmit, records, onEdit, onDelete
   return <section className="panel green-panel">
     <h2>Record amount received from RHB</h2>
     <input className="date-input" type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
-    <ReceivedRow brand={<BrandLogo type="visa" small />} label="Visa Received Amount (RM)" field="visaReceived" form={form} setForm={setForm} />
-    <ReceivedRow brand={<BrandLogo type="mastercard" small />} label="Master Received Amount (RM)" field="masterReceived" form={form} setForm={setForm} />
+    <ReceivedRow brand={<div style={{ display: "flex", gap: "8px", alignItems: "center" }}><BrandLogo type="visa" small /><BrandLogo type="mastercard" small /></div>} label="Visa/Master Received Amount (RM)" field="cardReceived" form={form} setForm={setForm} />
     <ReceivedRow brand={<BrandLogo type="mydebit" small />} label="MyDebit Received Amount (RM)" field="mydebitReceived" form={form} setForm={setForm} />
     <TotalBar label="Total Received (Auto)" value={total} tone="green" />
     <button className="primary green" onClick={onSubmit}>{editing ? 'Update Received' : 'Save Received'}</button>
@@ -330,10 +340,9 @@ function ReceivedHistory({ r, onEdit, onDelete }) {
   return <div className="history-card green-history">
     <div className="history-actions"><button onClick={() => onEdit(r)}><Pencil size={16}/></button><button onClick={() => onDelete(r.id)}><Trash2 size={16}/></button></div>
     <b>{niceDate(r.date)}</b>
-    <p><BrandLogo type="visa" mini /> Visa | {money.format(r.visaReceived)}</p>
-    <p><BrandLogo type="mastercard" mini /> Master | {money.format(r.masterReceived)}</p>
-    <p><BrandLogo type="mydebit" mini /> MyDebit | {money.format(r.mydebitReceived)}</p>
-    <strong className="total-text green-text">Total {money.format(r.total)}</strong>
+    <p><BrandLogo type="visa" mini /> Visa/Master | {money.format(cardReceivedAmount(r))}</p>
+    <p><BrandLogo type="mydebit" mini /> MyDebit | {money.format(number(r.mydebitReceived))}</p>
+    <strong className="total-text green-text">Total {money.format(receivedRecordTotal(r))}</strong>
   </div>
 }
 
