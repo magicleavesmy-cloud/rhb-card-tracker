@@ -4,6 +4,7 @@ import { doc, onSnapshot, serverTimestamp, setDoc } from 'firebase/firestore'
 import { db, hasFirebaseConfig } from './firebase'
 
 const money = new Intl.NumberFormat('en-MY', { style: 'currency', currency: 'MYR' })
+const percent = new Intl.NumberFormat('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const today = () => new Date().toISOString().slice(0, 10)
 
 const initialTerminalForm = {
@@ -31,6 +32,47 @@ const cardReceivedAmount = (record) => (
 const receivedRecordTotal = (record) => {
   const calculatedTotal = cardReceivedAmount(record) + number(record.mydebitReceived)
   return record.total === undefined ? calculatedTotal : number(record.total)
+}
+const formatRate = (value) => `${percent.format(value)}%`
+const recordMonth = (date) => String(date || '').slice(0, 7)
+const buildChargeAnalytics = (terminalRecords, receivedRecords) => {
+  const terminalByDate = new Map()
+  const receivedByDate = new Map()
+
+  terminalRecords.forEach((record) => {
+    terminalByDate.set(record.date, number(terminalByDate.get(record.date)) + number(record.total))
+  })
+  receivedRecords.forEach((record) => {
+    receivedByDate.set(record.date, number(receivedByDate.get(record.date)) + receivedRecordTotal(record))
+  })
+
+  const byDate = {}
+  terminalByDate.forEach((terminalTotal, date) => {
+    if (!receivedByDate.has(date) || terminalTotal <= 0) return
+
+    const receivedTotal = receivedByDate.get(date)
+    const charges = terminalTotal - receivedTotal
+    byDate[date] = {
+      terminalTotal,
+      receivedTotal,
+      charges,
+      chargeRate: (charges / terminalTotal) * 100,
+    }
+  })
+
+  const currentMonth = today().slice(0, 7)
+  const monthly = Object.entries(byDate).reduce((acc, [date, analytics]) => {
+    if (recordMonth(date) !== currentMonth) return acc
+
+    acc.terminalTotal += analytics.terminalTotal
+    acc.receivedTotal += analytics.receivedTotal
+    acc.charges += analytics.charges
+    return acc
+  }, { terminalTotal: 0, receivedTotal: 0, charges: 0 })
+
+  monthly.chargeRate = monthly.terminalTotal > 0 ? (monthly.charges / monthly.terminalTotal) * 100 : 0
+
+  return { byDate, monthly }
 }
 const readStoredRecords = (key) => {
   try {
@@ -154,6 +196,7 @@ export default function App() {
 
   const terminalTotal = useMemo(() => number(terminalForm.visaAmount) + number(terminalForm.masterAmount) + number(terminalForm.mydebitAmount), [terminalForm])
   const receivedTotal = useMemo(() => number(receivedForm.cardReceived) + number(receivedForm.mydebitReceived), [receivedForm])
+  const chargeAnalytics = useMemo(() => buildChargeAnalytics(terminalRecords, receivedRecords), [terminalRecords, receivedRecords])
 
   const summary = useMemo(() => {
     const terminal = terminalRecords.reduce((acc, r) => {
@@ -165,8 +208,14 @@ export default function App() {
     }, { visa: 0, master: 0, mydebit: 0, total: 0 })
 
     const received = receivedRecords.reduce((acc, r) => acc + receivedRecordTotal(r), 0)
-    return { ...terminal, received, difference: terminal.total - received }
-  }, [terminalRecords, receivedRecords])
+    return {
+      ...terminal,
+      received,
+      difference: terminal.total - received,
+      monthlyCharges: chargeAnalytics.monthly.charges,
+      monthlyChargeRate: chargeAnalytics.monthly.chargeRate,
+    }
+  }, [terminalRecords, receivedRecords, chargeAnalytics])
 
   const submitTerminal = () => {
     const record = {
@@ -243,6 +292,7 @@ export default function App() {
             total={terminalTotal}
             onSubmit={submitTerminal}
             records={terminalRecords}
+            chargesByDate={chargeAnalytics.byDate}
             onEdit={editTerminal}
             onDelete={(id) => saveTerminal(terminalRecords.filter((r) => r.id !== id))}
             editing={!!editingTerminalId}
@@ -255,6 +305,7 @@ export default function App() {
             total={receivedTotal}
             onSubmit={submitReceived}
             records={receivedRecords}
+            chargesByDate={chargeAnalytics.byDate}
             onEdit={editReceived}
             onDelete={(id) => saveReceived(receivedRecords.filter((r) => r.id !== id))}
             editing={!!editingReceivedId}
@@ -279,10 +330,12 @@ function Dashboard({ summary }) {
     <SummaryCard label="Total Terminal Total" value={summary.total} tone="purple" icon={<span style={{ fontSize: "30px" }}>💳</span>} />
     <SummaryCard label="Total RHB Received" value={summary.received} tone="green" icon={<span style={{ fontSize: "30px" }}>🏦</span>} />
     <SummaryCard label="Total Difference / Charges" value={summary.difference} tone="yellow" icon={<span style={{ fontSize: "30px" }}>📊</span>} />
+    <SummaryCard label="Monthly Charges" value={summary.monthlyCharges} tone="yellow" icon={<span style={{ fontSize: "30px" }}>📊</span>} />
+    <SummaryCard label="Monthly Charge Rate" value={formatRate(summary.monthlyChargeRate)} tone="green" icon={<span style={{ fontSize: "30px" }}>%</span>} raw />
   </section>
 }
 
-function TerminalSales({ form, setForm, total, onSubmit, records, onEdit, onDelete, editing }) {
+function TerminalSales({ form, setForm, total, onSubmit, records, chargesByDate, onEdit, onDelete, editing }) {
   return <section className="panel">
     <h2>Record daily terminal settlement</h2>
     <input className="date-input" type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
@@ -292,11 +345,11 @@ function TerminalSales({ form, setForm, total, onSubmit, records, onEdit, onDele
     <TotalBar label="Total Amount (Auto)" value={total} tone="purple" />
     <button className="primary" onClick={onSubmit}>{editing ? 'Update Settlement' : 'Save Settlement'}</button>
     <HistoryTitle />
-    {records.map((r) => <TerminalHistory key={r.id} r={r} onEdit={onEdit} onDelete={onDelete} />)}
+    {records.map((r) => <TerminalHistory key={r.id} r={r} charges={chargesByDate[r.date]} onEdit={onEdit} onDelete={onDelete} />)}
   </section>
 }
 
-function RhbReceived({ form, setForm, total, onSubmit, records, onEdit, onDelete, editing }) {
+function RhbReceived({ form, setForm, total, onSubmit, records, chargesByDate, onEdit, onDelete, editing }) {
   return <section className="panel green-panel">
     <h2>Record amount received from RHB</h2>
     <input className="date-input" type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
@@ -305,7 +358,7 @@ function RhbReceived({ form, setForm, total, onSubmit, records, onEdit, onDelete
     <TotalBar label="Total Received (Auto)" value={total} tone="green" />
     <button className="primary green" onClick={onSubmit}>{editing ? 'Update Received' : 'Save Received'}</button>
     <HistoryTitle />
-    {records.map((r) => <ReceivedHistory key={r.id} r={r} onEdit={onEdit} onDelete={onDelete} />)}
+    {records.map((r) => <ReceivedHistory key={r.id} r={r} charges={chargesByDate[r.date]} onEdit={onEdit} onDelete={onDelete} />)}
   </section>
 }
 
@@ -325,23 +378,34 @@ function ReceivedRow({ brand, label, field, form, setForm }) {
   </div>
 }
 
-function TerminalHistory({ r, onEdit, onDelete }) {
+function ChargesDetails({ charges }) {
+  if (!charges) return null
+
+  return <>
+    <p>Charges | {money.format(charges.charges)}</p>
+    <p>Charge Rate | {formatRate(charges.chargeRate)}</p>
+  </>
+}
+
+function TerminalHistory({ r, charges, onEdit, onDelete }) {
   return <div className="history-card">
     <div className="history-actions"><button onClick={() => onEdit(r)}><Pencil size={16}/></button><button onClick={() => onDelete(r.id)}><Trash2 size={16}/></button></div>
     <b>{niceDate(r.date)}</b>
     <p><BrandLogo type="visa" mini /> {r.visaEntries} | Visa | {money.format(r.visaAmount)}</p>
     <p><BrandLogo type="mastercard" mini /> {r.masterEntries} | Master | {money.format(r.masterAmount)}</p>
     <p><BrandLogo type="mydebit" mini /> {r.mydebitEntries} | MyDebit | {money.format(r.mydebitAmount)}</p>
+    <ChargesDetails charges={charges} />
     <strong className="total-text">Total {money.format(r.total)}</strong>
   </div>
 }
 
-function ReceivedHistory({ r, onEdit, onDelete }) {
+function ReceivedHistory({ r, charges, onEdit, onDelete }) {
   return <div className="history-card green-history">
     <div className="history-actions"><button onClick={() => onEdit(r)}><Pencil size={16}/></button><button onClick={() => onDelete(r.id)}><Trash2 size={16}/></button></div>
     <b>{niceDate(r.date)}</b>
     <p><BrandLogo type="visa" mini /> Visa/Master | {money.format(cardReceivedAmount(r))}</p>
     <p><BrandLogo type="mydebit" mini /> MyDebit | {money.format(number(r.mydebitReceived))}</p>
+    <ChargesDetails charges={charges} />
     <strong className="total-text green-text">Total {money.format(receivedRecordTotal(r))}</strong>
   </div>
 }
@@ -361,8 +425,8 @@ function BrandLogo({ type, small = false, mini = false }) {
   );
 }
 
-function SummaryCard({ label, value, tone, icon }) {
-  return <div className={`summary-card ${tone}`}><div><p>{label}</p><h3>{money.format(value)}</h3></div><div className="icon-badge">{icon}</div></div>
+function SummaryCard({ label, value, tone, icon, raw = false }) {
+  return <div className={`summary-card ${tone}`}><div><p>{label}</p><h3>{raw ? value : money.format(value)}</h3></div><div className="icon-badge">{icon}</div></div>
 }
 
 function TotalBar({ label, value, tone }) { return <div className={`total-bar ${tone}`}><span>{label}</span><b>{money.format(value)}</b></div> }
