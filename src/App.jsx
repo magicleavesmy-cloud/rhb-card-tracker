@@ -34,6 +34,7 @@ const receivedRecordTotal = (record) => {
   return record.total === undefined ? calculatedTotal : number(record.total)
 }
 const formatRate = (value) => `${percent.format(value)}%`
+const LAST_SYNC_KEY = 'last_synced_at'
 const compactDate = (date) => niceDate(date).toUpperCase()
 const recordMonth = (date) => String(date || '').slice(0, 7)
 const buildChargeAnalytics = (terminalRecords, receivedRecords) => {
@@ -150,6 +151,14 @@ const readStoredRecords = (key) => {
     return []
   }
 }
+const readLastSyncedAt = () => {
+  const stored = localStorage.getItem(LAST_SYNC_KEY)
+  if (!stored) return null
+
+  const parsed = new Date(stored)
+  return Number.isNaN(parsed.getTime()) ? null : parsed
+}
+const formatSyncTime = (date) => date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
 
 const recordsDoc = db ? doc(db, 'rhb-card-tracker', 'shared') : null
 
@@ -166,7 +175,14 @@ export default function App() {
   const [editingTerminalId, setEditingTerminalId] = useState(null)
   const [editingReceivedId, setEditingReceivedId] = useState(null)
   const [syncStatus, setSyncStatus] = useState(hasFirebaseConfig ? 'Loading cloud records...' : 'Add Firebase env to enable sync')
+  const [lastSyncedAt, setLastSyncedAt] = useState(readLastSyncedAt)
   const latestRecords = useRef({ terminalRecords, receivedRecords })
+
+  const markSynced = () => {
+    const syncedAt = new Date()
+    localStorage.setItem(LAST_SYNC_KEY, syncedAt.toISOString())
+    setLastSyncedAt(syncedAt)
+  }
 
   const persistLocal = (nextTerminal, nextReceived) => {
     localStorage.setItem('terminal_records', JSON.stringify(nextTerminal))
@@ -196,7 +212,10 @@ export default function App() {
 
     setSyncStatus('Syncing...')
     syncToCloud(nextTerminal, nextReceived)
-      .then(() => setSyncStatus('Synced'))
+      .then(() => {
+        setSyncStatus('Synced')
+        markSynced()
+      })
       .catch((error) => {
         console.error('Firebase sync failed:', error)
         setSyncStatus('Saved locally, cloud pending')
@@ -213,7 +232,10 @@ export default function App() {
     return onSnapshot(recordsDoc, (snapshot) => {
       if (!snapshot.exists()) {
         syncToCloud(latestRecords.current.terminalRecords, latestRecords.current.receivedRecords)
-          .then(() => setSyncStatus('Local records synced'))
+          .then(() => {
+            setSyncStatus('Local records synced')
+            markSynced()
+          })
           .catch((error) => {
             console.error('Firebase sync failed:', error)
             setSyncStatus('Cloud unavailable, using local backup')
@@ -228,6 +250,7 @@ export default function App() {
       setTerminalRecords(cloudTerminal)
       setReceivedRecords(cloudReceived)
       setSyncStatus('Synced')
+      markSynced()
     }, (error) => {
       console.error('Firebase sync failed:', error)
       setSyncStatus('Cloud unavailable, using local backup')
@@ -288,6 +311,7 @@ export default function App() {
         setSyncStatus('Syncing...')
         await syncToCloud(nextTerminal, nextReceived)
         setSyncStatus('Synced')
+        markSynced()
       } catch (error) {
         console.error('Backup cloud sync failed:', error)
         setSyncStatus('Imported locally, cloud pending')
@@ -314,6 +338,7 @@ export default function App() {
       setSyncStatus('Syncing...')
       await syncToCloud(latestRecords.current.terminalRecords, latestRecords.current.receivedRecords)
       setSyncStatus('Synced')
+      markSynced()
     } catch (error) {
       console.error('Manual sync failed:', error)
       setSyncStatus('Cloud unavailable, using local backup')
@@ -326,6 +351,7 @@ export default function App() {
   const chargeAnalytics = useMemo(() => buildChargeAnalytics(terminalRecords, receivedRecords), [terminalRecords, receivedRecords])
   const currentMonthDays = useMemo(() => buildCurrentMonthDays(terminalRecords, receivedRecords), [terminalRecords, receivedRecords])
   const terminalAverages = useMemo(() => buildTerminalAverages(terminalRecords), [terminalRecords])
+  const syncLabel = lastSyncedAt ? `✓ Synced ${formatSyncTime(lastSyncedAt)}` : 'Sync pending'
 
   const summary = useMemo(() => {
     const terminal = terminalRecords.reduce((acc, r) => {
@@ -406,11 +432,11 @@ export default function App() {
 
       <main className="main">
         <header className="topbar">
-          <div><p className="eyebrow">SHOP CREDIT CARD DAILY SALES</p><h1>{activeTab === 'dashboard' ? 'Dashboard' : activeTab === 'terminal' ? 'Terminal Sales' : 'RHB Received'}</h1></div>
+          <div><p className="eyebrow">MAGIC LEAVES RHB TERMINAL SALES</p><h1>{activeTab === 'dashboard' ? 'Dashboard' : activeTab === 'terminal' ? 'Terminal Sales' : 'RHB Received'}</h1></div>
           <div className="topbar-actions">
             <button className="topbar-btn" onClick={syncNow} title="Sync Now"><RefreshCw size={16} /><span>Sync Now</span></button>
             <div className="date-pill">{new Date().toLocaleDateString('en-MY', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
-            <span className="sync-status">✓ {syncStatus}</span>
+            <span className={`sync-status ${lastSyncedAt ? 'synced' : 'pending'}`} title={syncStatus}>{syncLabel}</span>
           </div>
         </header>
 
