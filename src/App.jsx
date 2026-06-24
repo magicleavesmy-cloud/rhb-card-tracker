@@ -230,7 +230,8 @@ export default function App() {
     }
   }
 
-  const terminalTotal = useMemo(() => number(terminalForm.visaAmount) + number(terminalForm.masterAmount) + number(terminalForm.mydebitAmount), [terminalForm])
+  const visaMasterTotal = useMemo(() => number(terminalForm.visaAmount) + number(terminalForm.masterAmount), [terminalForm])
+  const terminalTotal = useMemo(() => visaMasterTotal + number(terminalForm.mydebitAmount), [terminalForm, visaMasterTotal])
   const receivedTotal = useMemo(() => number(receivedForm.cardReceived) + number(receivedForm.mydebitReceived), [receivedForm])
   const chargeAnalytics = useMemo(() => buildChargeAnalytics(terminalRecords, receivedRecords), [terminalRecords, receivedRecords])
   const lastTenDays = useMemo(() => buildLastTenDays(terminalRecords, receivedRecords), [terminalRecords, receivedRecords])
@@ -327,6 +328,7 @@ export default function App() {
             form={terminalForm}
             setForm={setTerminalForm}
             total={terminalTotal}
+            visaMasterTotal={visaMasterTotal}
             onSubmit={submitTerminal}
             records={terminalRecords}
             chargesByDate={chargeAnalytics.byDate}
@@ -360,7 +362,7 @@ export default function App() {
 }
 
 function Dashboard({ summary, lastTenDays }) {
-  return <div className="dashboard-view">
+  return <div className="dashboard-view dashboard-page">
     <div className="dashboard-summary-screen">
       <section className="grid cards">
         <SummaryCard label="Total Visa Sales" value={summary.visa} tone="blue" icon={<BrandLogo type="visa" />} />
@@ -382,12 +384,12 @@ function Dashboard({ summary, lastTenDays }) {
               <b>{compactDate(row.date)}</b>
               <span className={`status-dot ${row.hasTerminal && row.hasReceived ? 'complete' : row.hasRecords ? 'partial' : 'missing'}`} />
             </div>
-            <p className={row.hasRecords ? '' : 'no-entry'}>
-              <span className={!row.hasTerminal && row.hasReceived ? 'missing-amount' : ''}>TERM: {row.hasTerminal ? money.format(row.terminalTotal) : '-'}</span>
-              <span> | </span>
-              <span className={!row.hasReceived && row.hasTerminal ? 'missing-amount' : ''}>REC: {row.hasReceived ? money.format(row.receivedTotal) : '-'}</span>
-              <span> | COMM: {row.hasRecords ? money.format(row.commission) : '-'} | {formatRate(row.percentage)}</span>
-            </p>
+            <div className="last-day-chips">
+              <span className={`metric-chip terminal ${row.hasTerminal ? '' : 'missing'}`}>{row.hasTerminal ? money.format(row.terminalTotal) : '-'}</span>
+              <span className={`metric-chip received ${row.hasReceived ? '' : 'missing'}`}>{row.hasReceived ? money.format(row.receivedTotal) : '-'}</span>
+              <span className={`metric-chip commission ${row.hasRecords ? '' : 'missing'}`}>{row.hasRecords ? money.format(row.commission) : '-'}</span>
+              <span className="metric-chip percent">{formatRate(row.percentage)}</span>
+            </div>
           </div>
         ))}
       </div>
@@ -395,12 +397,13 @@ function Dashboard({ summary, lastTenDays }) {
   </div>
 }
 
-function TerminalSales({ form, setForm, total, onSubmit, records, chargesByDate, onEdit, onDelete, editing }) {
-  return <section className="panel">
+function TerminalSales({ form, setForm, total, visaMasterTotal, onSubmit, records, chargesByDate, onEdit, onDelete, editing }) {
+  return <section className="panel terminal-page">
     <h2>Record daily terminal settlement</h2>
     <input className="date-input" type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
     <TerminalRow brand={<BrandLogo type="visa" small />} label="Visa" entries="visaEntries" amount="visaAmount" form={form} setForm={setForm} />
     <TerminalRow brand={<BrandLogo type="mastercard" small />} label="Master" entries="masterEntries" amount="masterAmount" form={form} setForm={setForm} />
+    <MiniTotalBar label="Visa + Master Total (Auto)" value={visaMasterTotal} />
     <TerminalRow brand={<BrandLogo type="mydebit" small />} label="MyDebit" entries="mydebitEntries" amount="mydebitAmount" form={form} setForm={setForm} />
     <TotalBar label="Total Amount (Auto)" value={total} tone="purple" />
     <button className="primary" onClick={onSubmit}>{editing ? 'Update Settlement' : 'Save Settlement'}</button>
@@ -410,7 +413,7 @@ function TerminalSales({ form, setForm, total, onSubmit, records, chargesByDate,
 }
 
 function RhbReceived({ form, setForm, total, onSubmit, records, chargesByDate, onEdit, onDelete, editing }) {
-  return <section className="panel green-panel">
+  return <section className="panel green-panel received-page">
     <h2>Record amount received from RHB</h2>
     <input className="date-input" type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
     <ReceivedRow brand={<div style={{ display: "flex", gap: "8px", alignItems: "center" }}><BrandLogo type="visa" small /><BrandLogo type="mastercard" small /></div>} label="Visa/Master Received Amount (RM)" field="cardReceived" form={form} setForm={setForm} />
@@ -489,6 +492,7 @@ function SummaryCard({ label, value, tone, icon, raw = false }) {
 }
 
 function TotalBar({ label, value, tone }) { return <div className={`total-bar ${tone}`}><span>{label}</span><b>{money.format(value)}</b></div> }
+function MiniTotalBar({ label, value }) { return <div className="mini-total-bar"><span>{label}</span><b>{money.format(value)}</b></div> }
 function HistoryTitle() { return <h3 className="history-title">History</h3> }
 function niceDate(date) { return new Date(date + 'T00:00:00').toLocaleDateString('en-MY', { day: '2-digit', month: 'short', year: 'numeric' }) }
 function NavButton({ id, activeTab, setActiveTab, icon, label }) { return <button className={`nav-btn ${activeTab === id ? 'active' : ''}`} onClick={() => setActiveTab(id)}>{icon}<span>{label}</span></button> }
