@@ -151,3 +151,31 @@
     font-size: 11px !important;
   }
 }
+/* FIX SUMMARY CARD CUSTOM ICONS */
+.card-icon {
+  width: 58px !important;
+  height: 58px !important;
+  object-fit: contain !important;
+  display: block !important;
+}
+
+.summary-card .icon-badge {
+  width: 74px !important;
+  min-width: 74px !important;
+  height: 58px !important;
+  overflow: hidden !important;
+  border-radius: 18px !important;
+}
+
+@media (max-width: 900px) {
+  .card-icon {
+    width: 56px !important;
+    height: 56px !important;
+  }
+
+  .summary-card .icon-badge {
+    width: 72px !important;
+    min-width: 72px !important;
+    height: 56px !important;
+  }
+}

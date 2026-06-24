@@ -163,9 +163,9 @@ function Dashboard({ summary }) {
     <SummaryCard label="Total Visa Sales" value={summary.visa} tone="blue" icon={<BrandLogo type="visa" />} />
     <SummaryCard label="Total Master Sales" value={summary.master} tone="orange" icon={<BrandLogo type="mastercard" />} />
     <SummaryCard label="Total MyDebit Sales" value={summary.mydebit} tone="cyan" icon={<BrandLogo type="mydebit" />} />
-    <SummaryCard label="Total Terminal Total" value={summary.total} tone="purple" icon={<AppIcon name="total-terminal-sales" className="card-icon" />} />
-    <SummaryCard label="Total RHB Received" value={summary.received} tone="green" icon={<AppIcon name="total-rhb-received" className="card-icon" />} />
-    <SummaryCard label="Total Difference / Charges" value={summary.difference} tone="yellow" icon={<AppIcon name="total-difference" className="card-icon" />} />
+    <SummaryCard label="Total Terminal Total" value={summary.total} tone="purple" icon={<span style={{ fontSize: "30px" }}>💳</span>} />
+    <SummaryCard label="Total RHB Received" value={summary.received} tone="green" icon={<span style={{ fontSize: "30px" }}>🏦</span>} />
+    <SummaryCard label="Total Difference / Charges" value={summary.difference} tone="yellow" icon={<span style={{ fontSize: "30px" }}>📊</span>} />
   </section>
 }
 
