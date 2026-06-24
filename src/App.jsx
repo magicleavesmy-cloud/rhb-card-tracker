@@ -34,6 +34,7 @@ const receivedRecordTotal = (record) => {
   return record.total === undefined ? calculatedTotal : number(record.total)
 }
 const formatRate = (value) => `${percent.format(value)}%`
+const compactDate = (date) => niceDate(date).toUpperCase()
 const recordMonth = (date) => String(date || '').slice(0, 7)
 const buildChargeAnalytics = (terminalRecords, receivedRecords) => {
   const terminalByDate = new Map()
@@ -77,30 +78,37 @@ const buildChargeAnalytics = (terminalRecords, receivedRecords) => {
 const buildLastTenDays = (terminalRecords, receivedRecords) => {
   const terminalByDate = new Map()
   const receivedByDate = new Map()
-  const dates = new Set()
 
   terminalRecords.forEach((record) => {
     if (!record.date) return
-    dates.add(record.date)
     terminalByDate.set(record.date, number(terminalByDate.get(record.date)) + number(record.total))
   })
   receivedRecords.forEach((record) => {
     if (!record.date) return
-    dates.add(record.date)
     receivedByDate.set(record.date, number(receivedByDate.get(record.date)) + receivedRecordTotal(record))
   })
 
-  return Array.from(dates)
-    .sort((a, b) => b.localeCompare(a))
-    .slice(0, 10)
-    .map((date) => {
-      const terminalTotal = number(terminalByDate.get(date))
-      const receivedTotal = number(receivedByDate.get(date))
-      const commission = terminalTotal - receivedTotal
-      const percentage = terminalTotal > 0 ? (commission / terminalTotal) * 100 : 0
+  return Array.from({ length: 10 }, (_, index) => {
+    const date = new Date()
+    date.setDate(date.getDate() - index)
+    const dateKey = date.toISOString().slice(0, 10)
+    const hasTerminal = terminalByDate.has(dateKey)
+    const hasReceived = receivedByDate.has(dateKey)
+    const terminalTotal = number(terminalByDate.get(dateKey))
+    const receivedTotal = number(receivedByDate.get(dateKey))
+    const commission = terminalTotal - receivedTotal
+    const percentage = terminalTotal > 0 ? (commission / terminalTotal) * 100 : 0
+    const hasRecords = hasTerminal || hasReceived
+    const status = hasTerminal && hasReceived
+      ? 'MATCHED'
+      : hasReceived
+        ? 'MISSING TERMINAL'
+        : hasTerminal
+          ? 'MISSING RHB'
+          : 'NO ENTRY'
 
-      return { date, terminalTotal, receivedTotal, commission, percentage }
-    })
+    return { date: dateKey, terminalTotal, receivedTotal, commission, percentage, hasRecords, hasTerminal, hasReceived, status }
+  })
 }
 const readStoredRecords = (key) => {
   try {
@@ -307,9 +315,9 @@ export default function App() {
         <header className="topbar">
           <div><p className="eyebrow">SHOP CREDIT CARD DAILY SALES</p><h1>{activeTab === 'dashboard' ? 'Dashboard' : activeTab === 'terminal' ? 'Terminal Sales' : 'RHB Received'}</h1></div>
           <div className="topbar-actions">
-            <span className="sync-status">{syncStatus}</span>
             <button className="topbar-btn" onClick={syncNow} title="Sync Now"><RefreshCw size={16} /><span>Sync Now</span></button>
             <div className="date-pill">{new Date().toLocaleDateString('en-MY', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
+            <span className="sync-status">✓ {syncStatus}</span>
           </div>
         </header>
 
@@ -365,21 +373,15 @@ function Dashboard({ summary, lastTenDays }) {
     </section>
     <section className="last-days-panel">
       <h2>Last 10 Days</h2>
-      <div className="last-days-table">
-        <div className="last-days-row last-days-head">
-          <span>Date</span>
-          <span>Terminal Sales</span>
-          <span>RHB Received</span>
-          <span>Commission</span>
-          <span>%</span>
-        </div>
+      <div className="last-days-list">
         {lastTenDays.map((row) => (
-          <div className="last-days-row" key={row.date}>
-            <span>{niceDate(row.date)}</span>
-            <span>{money.format(row.terminalTotal)}</span>
-            <span>{money.format(row.receivedTotal)}</span>
-            <span>{money.format(row.commission)}</span>
-            <span>{formatRate(row.percentage)}</span>
+          <div className="last-day-card" key={row.date}>
+            <div className="last-day-top">
+              <b>{compactDate(row.date)}</b>
+              <span className={`status-chip ${row.status.toLowerCase().replaceAll(' ', '-')}`}>{row.status}</span>
+            </div>
+            <p>T: {row.hasTerminal ? money.format(row.terminalTotal) : '-'} | R: {row.hasReceived ? money.format(row.receivedTotal) : '-'}</p>
+            <p>C: {row.hasRecords ? money.format(row.commission) : '-'} | {formatRate(row.percentage)}</p>
           </div>
         ))}
       </div>
@@ -433,32 +435,29 @@ function ReceivedRow({ brand, label, field, form, setForm }) {
 function ChargesDetails({ charges }) {
   if (!charges) return null
 
-  return <>
-    <p>Charges | {money.format(charges.charges)}</p>
-    <p>Charge Rate | {formatRate(charges.chargeRate)}</p>
-  </>
+  return <div className="history-money-row charges-row"><span>Charges</span><b>{money.format(charges.charges)} ({formatRate(charges.chargeRate)})</b></div>
 }
 
 function TerminalHistory({ r, charges, onEdit, onDelete }) {
   return <div className="history-card">
     <div className="history-actions"><button onClick={() => onEdit(r)}><Pencil size={16}/></button><button onClick={() => onDelete(r.id)}><Trash2 size={16}/></button></div>
-    <b>{niceDate(r.date)}</b>
-    <p><BrandLogo type="visa" mini /> {r.visaEntries} | Visa | {money.format(r.visaAmount)}</p>
-    <p><BrandLogo type="mastercard" mini /> {r.masterEntries} | Master | {money.format(r.masterAmount)}</p>
-    <p><BrandLogo type="mydebit" mini /> {r.mydebitEntries} | MyDebit | {money.format(r.mydebitAmount)}</p>
+    <b className="history-date">{compactDate(r.date)}</b>
+    <div className="history-money-row"><span>Visa</span><b>{r.visaEntries} | {money.format(r.visaAmount)}</b></div>
+    <div className="history-money-row"><span>Master</span><b>{r.masterEntries} | {money.format(r.masterAmount)}</b></div>
+    <div className="history-money-row"><span>MyDebit</span><b>{r.mydebitEntries} | {money.format(r.mydebitAmount)}</b></div>
     <ChargesDetails charges={charges} />
-    <strong className="total-text">Total {money.format(r.total)}</strong>
+    <strong className="total-text history-total"><span>TOTAL</span><b>{money.format(r.total)}</b></strong>
   </div>
 }
 
 function ReceivedHistory({ r, charges, onEdit, onDelete }) {
   return <div className="history-card green-history">
     <div className="history-actions"><button onClick={() => onEdit(r)}><Pencil size={16}/></button><button onClick={() => onDelete(r.id)}><Trash2 size={16}/></button></div>
-    <b>{niceDate(r.date)}</b>
-    <p><BrandLogo type="visa" mini /> Visa/Master | {money.format(cardReceivedAmount(r))}</p>
-    <p><BrandLogo type="mydebit" mini /> MyDebit | {money.format(number(r.mydebitReceived))}</p>
+    <b className="history-date">{compactDate(r.date)}</b>
+    <div className="history-money-row"><span>Visa/Master</span><b>{money.format(cardReceivedAmount(r))}</b></div>
+    <div className="history-money-row"><span>MyDebit</span><b>{money.format(number(r.mydebitReceived))}</b></div>
     <ChargesDetails charges={charges} />
-    <strong className="total-text green-text">Total {money.format(receivedRecordTotal(r))}</strong>
+    <strong className="total-text green-text history-total"><span>TOTAL</span><b>{money.format(receivedRecordTotal(r))}</b></strong>
   </div>
 }
 

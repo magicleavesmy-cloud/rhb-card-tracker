@@ -240,7 +240,7 @@
 }
 /* GLOBAL SCALE DOWN */
 .app-shell {
-  zoom: 0.5;
+  zoom: 0.55;
   min-height: 100vh;
 }
 
@@ -324,5 +324,249 @@
     gap: 8px;
     padding: 8px 10px;
     font-size: 12px;
+  }
+}
+
+/* COMPACT UI REFINEMENTS */
+.topbar {
+  margin-bottom: 14px;
+  gap: 12px;
+}
+
+.topbar-actions {
+  gap: 8px;
+}
+
+.topbar-btn,
+.date-pill,
+.sync-status {
+  min-height: 38px;
+}
+
+.topbar-btn {
+  padding: 8px 11px;
+}
+
+.date-pill {
+  padding: 9px 12px;
+}
+
+.sync-status {
+  display: inline-flex;
+  align-items: center;
+  max-width: 220px;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  background: #0b1220;
+  padding: 8px 11px;
+  color: #4ade80;
+}
+
+.grid.cards {
+  gap: 14px;
+}
+
+.summary-card {
+  min-height: 100px;
+  padding: 16px 18px;
+  border-radius: 16px;
+}
+
+.summary-card p {
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.summary-card h3 {
+  font-size: 24px;
+  line-height: 1.1;
+}
+
+.summary-card .icon-badge {
+  width: 62px !important;
+  min-width: 62px !important;
+  height: 50px !important;
+  border-radius: 14px !important;
+}
+
+.last-days-panel {
+  padding: 14px;
+  border-radius: 16px;
+}
+
+.last-days-panel h2 {
+  margin-bottom: 10px;
+  font-size: 20px;
+}
+
+.last-days-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.last-day-card {
+  border: 1px solid #263445;
+  border-radius: 12px;
+  background: #0b1220;
+  padding: 10px 12px;
+}
+
+.last-day-card p {
+  margin: 5px 0 0;
+  color: #e5e7eb;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.last-day-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.last-day-top b {
+  color: #7dd3fc;
+  font-size: 13px;
+  letter-spacing: .4px;
+}
+
+.status-chip {
+  border: 1px solid #334155;
+  border-radius: 999px;
+  padding: 4px 7px;
+  font-size: 10px;
+  font-weight: 1000;
+  color: #cbd5e1;
+  white-space: nowrap;
+}
+
+.status-chip.matched {
+  border-color: #166534;
+  color: #4ade80;
+}
+
+.status-chip.missing-terminal,
+.status-chip.missing-rhb {
+  border-color: #854d0e;
+  color: #facc15;
+}
+
+.status-chip.no-entry {
+  border-color: #334155;
+  color: #94a3b8;
+}
+
+.history-card {
+  padding: 15px 16px;
+  border-radius: 16px;
+}
+
+.history-date {
+  display: block;
+  margin-bottom: 12px;
+  letter-spacing: .4px;
+}
+
+.history-money-row,
+.history-total {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: baseline;
+  margin: 7px 0;
+  color: #e5e7eb;
+  font-size: 14px;
+}
+
+.history-money-row span,
+.history-total span {
+  min-width: 96px;
+  color: #cbd5e1;
+  font-weight: 900;
+}
+
+.history-money-row b,
+.history-total b {
+  color: #f8fafc;
+  text-align: right;
+}
+
+.charges-row {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #263445;
+}
+
+.history-total {
+  margin-top: 10px;
+  color: #a855f7;
+}
+
+.history-total span,
+.history-total b {
+  color: inherit;
+}
+
+.green-history .history-total {
+  color: #4ade80;
+}
+
+@media (max-width: 900px) {
+  .main {
+    padding: 14px 12px 82px;
+  }
+
+  .topbar {
+    margin-bottom: 12px;
+  }
+
+  .topbar-actions {
+    gap: 6px;
+  }
+
+  .topbar-btn,
+  .date-pill,
+  .sync-status {
+    min-height: 34px;
+    padding: 7px 9px;
+    font-size: 11px;
+  }
+
+  .grid.cards {
+    gap: 10px;
+  }
+
+  .summary-card {
+    min-height: 84px;
+    padding: 13px 15px;
+  }
+
+  .summary-card h3 {
+    font-size: 21px;
+  }
+
+  .summary-card .icon-badge {
+    width: 56px !important;
+    min-width: 56px !important;
+    height: 46px !important;
+  }
+
+  .last-days-list {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .last-day-card {
+    padding: 9px 10px;
+  }
+
+  .last-day-card p {
+    font-size: 12px;
+  }
+
+  .history-card {
+    padding: 14px;
   }
 }
