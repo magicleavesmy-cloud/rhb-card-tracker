@@ -1,5 +1,7 @@
-import { useMemo, useState } from 'react'
-import { CreditCard, Home, ReceiptText, Landmark, Pencil, Trash2 } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { CreditCard, Home, ReceiptText, Landmark, Pencil, Trash2, RefreshCw } from 'lucide-react'
+import { doc, onSnapshot, serverTimestamp, setDoc } from 'firebase/firestore'
+import { db, hasFirebaseConfig } from './firebase'
 
 const money = new Intl.NumberFormat('en-MY', { style: 'currency', currency: 'MYR' })
 const today = () => new Date().toISOString().slice(0, 10)
@@ -22,6 +24,15 @@ const initialReceivedForm = {
 }
 
 const number = (value) => Number(value || 0)
+const readStoredRecords = (key) => {
+  try {
+    return JSON.parse(localStorage.getItem(key) || '[]')
+  } catch {
+    return []
+  }
+}
+
+const recordsDoc = db ? doc(db, 'rhb-card-tracker', 'shared') : null
 
 function AppIcon({ name, className = "custom-icon" }) {
   return <img src={`/icons/${name}.png`} className={className} alt="" />
@@ -29,21 +40,108 @@ function AppIcon({ name, className = "custom-icon" }) {
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard')
-  const [terminalRecords, setTerminalRecords] = useState(() => JSON.parse(localStorage.getItem('terminal_records') || '[]'))
-  const [receivedRecords, setReceivedRecords] = useState(() => JSON.parse(localStorage.getItem('received_records') || '[]'))
+  const [terminalRecords, setTerminalRecords] = useState(() => readStoredRecords('terminal_records'))
+  const [receivedRecords, setReceivedRecords] = useState(() => readStoredRecords('received_records'))
   const [terminalForm, setTerminalForm] = useState(initialTerminalForm)
   const [receivedForm, setReceivedForm] = useState(initialReceivedForm)
   const [editingTerminalId, setEditingTerminalId] = useState(null)
   const [editingReceivedId, setEditingReceivedId] = useState(null)
+  const [syncStatus, setSyncStatus] = useState(hasFirebaseConfig ? 'Loading cloud records...' : 'Add Firebase env to enable sync')
+  const latestRecords = useRef({ terminalRecords, receivedRecords })
+
+  const persistLocal = (nextTerminal, nextReceived) => {
+    localStorage.setItem('terminal_records', JSON.stringify(nextTerminal))
+    localStorage.setItem('received_records', JSON.stringify(nextReceived))
+    latestRecords.current = { terminalRecords: nextTerminal, receivedRecords: nextReceived }
+  }
+
+  const syncToCloud = async (nextTerminal, nextReceived) => {
+    if (!recordsDoc) return
+
+    await setDoc(recordsDoc, {
+      terminalRecords: nextTerminal,
+      receivedRecords: nextReceived,
+      updatedAt: serverTimestamp(),
+    }, { merge: true })
+  }
+
+  const persistRecords = (nextTerminal, nextReceived) => {
+    setTerminalRecords(nextTerminal)
+    setReceivedRecords(nextReceived)
+    persistLocal(nextTerminal, nextReceived)
+
+    if (!recordsDoc || !navigator.onLine) {
+      setSyncStatus('Saved locally, cloud pending')
+      return
+    }
+
+    setSyncStatus('Syncing...')
+    syncToCloud(nextTerminal, nextReceived)
+      .then(() => setSyncStatus('Synced'))
+      .catch((error) => {
+        console.error('Firebase sync failed:', error)
+        setSyncStatus('Saved locally, cloud pending')
+      })
+  }
+
+  useEffect(() => {
+    latestRecords.current = { terminalRecords, receivedRecords }
+  }, [terminalRecords, receivedRecords])
+
+  useEffect(() => {
+    if (!recordsDoc) return
+
+    return onSnapshot(recordsDoc, (snapshot) => {
+      if (!snapshot.exists()) {
+        syncToCloud(latestRecords.current.terminalRecords, latestRecords.current.receivedRecords)
+          .then(() => setSyncStatus('Local records synced'))
+          .catch((error) => {
+            console.error('Firebase sync failed:', error)
+            setSyncStatus('Cloud unavailable, using local backup')
+          })
+        return
+      }
+
+      const cloud = snapshot.data()
+      const cloudTerminal = Array.isArray(cloud.terminalRecords) ? cloud.terminalRecords : []
+      const cloudReceived = Array.isArray(cloud.receivedRecords) ? cloud.receivedRecords : []
+      persistLocal(cloudTerminal, cloudReceived)
+      setTerminalRecords(cloudTerminal)
+      setReceivedRecords(cloudReceived)
+      setSyncStatus('Synced')
+    }, (error) => {
+      console.error('Firebase sync failed:', error)
+      setSyncStatus('Cloud unavailable, using local backup')
+    })
+  }, [])
 
   const saveTerminal = (next) => {
-    setTerminalRecords(next)
-    localStorage.setItem('terminal_records', JSON.stringify(next))
+    persistRecords(next, receivedRecords)
   }
 
   const saveReceived = (next) => {
-    setReceivedRecords(next)
-    localStorage.setItem('received_records', JSON.stringify(next))
+    persistRecords(terminalRecords, next)
+  }
+
+  const syncNow = async () => {
+    if (!recordsDoc) {
+      setSyncStatus('Add Firebase env to enable sync')
+      return
+    }
+
+    if (!navigator.onLine) {
+      setSyncStatus('Offline, using local backup')
+      return
+    }
+
+    try {
+      setSyncStatus('Syncing...')
+      await syncToCloud(latestRecords.current.terminalRecords, latestRecords.current.receivedRecords)
+      setSyncStatus('Synced')
+    } catch (error) {
+      console.error('Manual sync failed:', error)
+      setSyncStatus('Cloud unavailable, using local backup')
+    }
   }
 
   const terminalTotal = useMemo(() => number(terminalForm.visaAmount) + number(terminalForm.masterAmount) + number(terminalForm.mydebitAmount), [terminalForm])
@@ -119,7 +217,11 @@ export default function App() {
       <main className="main">
         <header className="topbar">
           <div><p className="eyebrow">SHOP CREDIT CARD DAILY SALES</p><h1>{activeTab === 'dashboard' ? 'Dashboard' : activeTab === 'terminal' ? 'Terminal Sales' : 'RHB Received'}</h1></div>
-          <div className="date-pill">{new Date().toLocaleDateString('en-MY', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
+          <div className="topbar-actions">
+            <span className="sync-status">{syncStatus}</span>
+            <button className="topbar-btn" onClick={syncNow} title="Sync Now"><RefreshCw size={16} /><span>Sync Now</span></button>
+            <div className="date-pill">{new Date().toLocaleDateString('en-MY', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
+          </div>
         </header>
 
         {activeTab === 'dashboard' && <Dashboard summary={summary} />}
