@@ -112,6 +112,37 @@ const buildCurrentMonthDays = (terminalRecords, receivedRecords) => {
     return { date: dateKey, terminalTotal, receivedTotal, commission, percentage, hasRecords, hasTerminal, hasReceived, status }
   })
 }
+const buildTerminalAverages = (terminalRecords) => {
+  const currentMonth = today().slice(0, 7)
+  const days = new Map()
+
+  terminalRecords.forEach((record) => {
+    if (recordMonth(record.date) !== currentMonth) return
+
+    const day = days.get(record.date) || { visa: 0, master: 0, mydebit: 0, total: 0 }
+    day.visa += number(record.visaAmount)
+    day.master += number(record.masterAmount)
+    day.mydebit += number(record.mydebitAmount)
+    day.total += number(record.total)
+    days.set(record.date, day)
+  })
+
+  const totals = Array.from(days.values()).reduce((acc, day) => {
+    acc.visa += day.visa
+    acc.master += day.master
+    acc.mydebit += day.mydebit
+    acc.total += day.total
+    return acc
+  }, { visa: 0, master: 0, mydebit: 0, total: 0 })
+  const count = days.size || 1
+
+  return {
+    visa: totals.visa / count,
+    master: totals.master / count,
+    mydebit: totals.mydebit / count,
+    total: totals.total / count,
+  }
+}
 const readStoredRecords = (key) => {
   try {
     return JSON.parse(localStorage.getItem(key) || '[]')
@@ -294,6 +325,7 @@ export default function App() {
   const receivedTotal = useMemo(() => number(receivedForm.cardReceived) + number(receivedForm.mydebitReceived), [receivedForm])
   const chargeAnalytics = useMemo(() => buildChargeAnalytics(terminalRecords, receivedRecords), [terminalRecords, receivedRecords])
   const currentMonthDays = useMemo(() => buildCurrentMonthDays(terminalRecords, receivedRecords), [terminalRecords, receivedRecords])
+  const terminalAverages = useMemo(() => buildTerminalAverages(terminalRecords), [terminalRecords])
 
   const summary = useMemo(() => {
     const terminal = terminalRecords.reduce((acc, r) => {
@@ -311,8 +343,9 @@ export default function App() {
       difference: terminal.total - received,
       monthlyCharges: chargeAnalytics.monthly.charges,
       monthlyChargeRate: chargeAnalytics.monthly.chargeRate,
+      terminalAverages,
     }
-  }, [terminalRecords, receivedRecords, chargeAnalytics])
+  }, [terminalRecords, receivedRecords, chargeAnalytics, terminalAverages])
 
   const submitTerminal = () => {
     const record = {
@@ -426,10 +459,10 @@ function Dashboard({ summary, currentMonthDays }) {
   return <div className="dashboard-view dashboard-page">
     <div className="dashboard-summary-screen">
       <section className="grid cards">
-        <SummaryCard label="Total Visa Sales" value={summary.visa} tone="blue" icon={<BrandLogo type="visa" />} />
-        <SummaryCard label="Total Master Sales" value={summary.master} tone="orange" icon={<BrandLogo type="mastercard" />} />
-        <SummaryCard label="Total MyDebit Sales" value={summary.mydebit} tone="cyan" icon={<BrandLogo type="mydebit" />} />
-        <SummaryCard label="Total Terminal Total" value={summary.total} tone="purple" icon={<span style={{ fontSize: "30px" }}>💳</span>} />
+        <SummaryCard label="Total Visa Sales" value={summary.visa} average={summary.terminalAverages.visa} tone="blue" icon={<BrandLogo type="visa" />} />
+        <SummaryCard label="Total Master Sales" value={summary.master} average={summary.terminalAverages.master} tone="orange" icon={<BrandLogo type="mastercard" />} />
+        <SummaryCard label="Total MyDebit Sales" value={summary.mydebit} average={summary.terminalAverages.mydebit} tone="cyan" icon={<BrandLogo type="mydebit" />} />
+        <SummaryCard label="Total Terminal Total" value={summary.total} average={summary.terminalAverages.total} tone="purple" icon={<span style={{ fontSize: "30px" }}>💳</span>} />
         <SummaryCard label="Total RHB Received" value={summary.received} tone="green" icon={<span style={{ fontSize: "30px" }}>🏦</span>} />
         <SummaryCard label="Total Difference / Charges" value={summary.difference} tone="yellow" icon={<span style={{ fontSize: "30px" }}>📊</span>} />
         <SummaryCard label="Monthly Charges" value={summary.monthlyCharges} tone="yellow" icon={<span className="gold-dollar-icon">💲</span>} />
@@ -577,8 +610,8 @@ function BrandLogo({ type, small = false, mini = false }) {
   );
 }
 
-function SummaryCard({ label, value, tone, icon, raw = false }) {
-  return <div className={`summary-card ${tone}`}><div><p>{label}</p><h3>{raw ? value : money.format(value)}</h3></div><div className="icon-badge">{icon}</div></div>
+function SummaryCard({ label, value, average, tone, icon, raw = false }) {
+  return <div className={`summary-card ${tone}`}><div><p>{label}</p><h3>{raw ? value : money.format(value)}</h3>{average !== undefined && <span className="avg-chip">AVG/DAY {money.format(average)}</span>}</div><div className="icon-badge">{icon}</div></div>
 }
 
 function TotalBar({ label, value, tone }) { return <div className={`total-bar ${tone}`}><span>{label}</span><b>{money.format(value)}</b></div> }
