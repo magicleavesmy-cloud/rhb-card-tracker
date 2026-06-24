@@ -380,10 +380,14 @@ function Dashboard({ summary, lastTenDays }) {
           <div className="last-day-card" key={row.date}>
             <div className="last-day-top">
               <b>{compactDate(row.date)}</b>
-              <span className={`status-chip ${row.status.toLowerCase().replaceAll(' ', '-')}`}>{row.status}</span>
+              <span className={`status-dot ${row.hasTerminal && row.hasReceived ? 'complete' : row.hasRecords ? 'partial' : 'missing'}`} />
             </div>
-            <p>T: {row.hasTerminal ? money.format(row.terminalTotal) : '-'} | R: {row.hasReceived ? money.format(row.receivedTotal) : '-'}</p>
-            <p>C: {row.hasRecords ? money.format(row.commission) : '-'} | {formatRate(row.percentage)}</p>
+            <p className={row.hasRecords ? '' : 'no-entry'}>
+              <span className={!row.hasTerminal && row.hasReceived ? 'missing-amount' : ''}>TERM: {row.hasTerminal ? money.format(row.terminalTotal) : '-'}</span>
+              <span> | </span>
+              <span className={!row.hasReceived && row.hasTerminal ? 'missing-amount' : ''}>REC: {row.hasReceived ? money.format(row.receivedTotal) : '-'}</span>
+              <span> | COMM: {row.hasRecords ? money.format(row.commission) : '-'} | {formatRate(row.percentage)}</span>
+            </p>
           </div>
         ))}
       </div>
@@ -421,8 +425,10 @@ function RhbReceived({ form, setForm, total, onSubmit, records, chargesByDate, o
 function TerminalRow({ brand, label, entries, amount, form, setForm }) {
   return <div className="input-row three">
     <div className="brand">{brand}</div>
-    <label>Entries (Qty)<input type="text" inputMode="numeric" value={form[entries]} onChange={(e) => setForm({ ...form, [entries]: e.target.value })} /></label>
-    <label>Amount (RM)<input type="text" inputMode="numeric" value={form[amount]} onChange={(e) => setForm({ ...form, [amount]: e.target.value })} /></label>
+    <div className="terminal-fields">
+      <label>Qty<input type="text" inputMode="numeric" value={form[entries]} onChange={(e) => setForm({ ...form, [entries]: e.target.value })} /></label>
+      <label>Amount (RM)<input type="text" inputMode="numeric" value={form[amount]} onChange={(e) => setForm({ ...form, [amount]: e.target.value })} /></label>
+    </div>
   </div>
 }
 
