@@ -240,12 +240,10 @@
 }
 /* GLOBAL SCALE DOWN */
 .app-shell {
-  zoom: 0.75;
+  zoom: 0.5;
   min-height: 100vh;
 }
 
-@media (max-width: 900px) {
-  .app-shell {
-    zoom: 1;
-  }
+.bottom-nav {
+  bottom: 0;
 }
