@@ -1,11 +1,25 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { CreditCard, Home, ReceiptText, Landmark, Pencil, Trash2, RefreshCw } from 'lucide-react'
+import { CreditCard, Home, ReceiptText, Landmark, Pencil, Trash2, RefreshCw, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
 import { doc, onSnapshot, serverTimestamp, setDoc } from 'firebase/firestore'
 import { db, hasFirebaseConfig } from './firebase'
 
 const money = new Intl.NumberFormat('en-MY', { style: 'currency', currency: 'MYR' })
 const percent = new Intl.NumberFormat('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-const today = () => new Date().toISOString().slice(0, 10)
+const dateKey = (date) => {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+const today = () => dateKey(new Date())
+const addDays = (date, amount) => {
+  const parsed = new Date(`${date || today()}T00:00:00`)
+  if (Number.isNaN(parsed.getTime())) return today()
+
+  parsed.setDate(parsed.getDate() + amount)
+  return dateKey(parsed)
+}
+const preventFutureDate = (date) => date > today() ? today() : date
 
 const initialTerminalForm = {
   date: today(),
@@ -35,9 +49,59 @@ const receivedRecordTotal = (record) => {
 }
 const formatRate = (value) => `${percent.format(value)}%`
 const LAST_SYNC_KEY = 'last_synced_at'
+const SELECTED_MONTH_KEY = 'rhbSelectedMonth'
 const compactDate = (date) => niceDate(date).toUpperCase()
 const recordMonth = (date) => String(date || '').slice(0, 7)
-const buildChargeAnalytics = (terminalRecords, receivedRecords) => {
+const getCurrentMonth = () => today().slice(0, 7)
+const buildMonthOptions = () => {
+  const year = new Date().getFullYear()
+
+  return Array.from({ length: 12 }, (_, month) => {
+    const date = new Date(year, month, 1)
+    return {
+      value: `${year}-${String(month + 1).padStart(2, '0')}`,
+      label: date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+    }
+  })
+}
+const readSelectedMonth = () => {
+  const currentMonth = getCurrentMonth()
+  const stored = localStorage.getItem(SELECTED_MONTH_KEY)
+  return stored?.startsWith(`${new Date().getFullYear()}-`) ? stored : currentMonth
+}
+const filterRecordsByMonth = (records, selectedMonth) => records.filter((transaction) => recordMonth(transaction.date) === selectedMonth)
+const terminalSalesForDate = (terminalRecords, date) => terminalRecords.reduce((acc, transaction) => {
+  if (transaction.date !== date) return acc
+
+  acc.card += number(transaction.visaAmount) + number(transaction.masterAmount)
+  acc.mydebit += number(transaction.mydebitAmount)
+  return acc
+}, { card: 0, mydebit: 0 })
+const terminalFormForDate = (terminalRecords, date) => {
+  const matches = terminalRecords.filter((transaction) => transaction.date === date)
+  if (!matches.length) {
+    return {
+      form: { ...initialTerminalForm, date },
+      editingId: null,
+    }
+  }
+
+  const form = matches.reduce((acc, transaction) => {
+    acc.visaEntries += number(transaction.visaEntries)
+    acc.visaAmount += number(transaction.visaAmount)
+    acc.masterEntries += number(transaction.masterEntries)
+    acc.masterAmount += number(transaction.masterAmount)
+    acc.mydebitEntries += number(transaction.mydebitEntries)
+    acc.mydebitAmount += number(transaction.mydebitAmount)
+    return acc
+  }, { ...initialTerminalForm, date, visaEntries: 0, visaAmount: 0, masterEntries: 0, masterAmount: 0, mydebitEntries: 0, mydebitAmount: 0 })
+
+  return {
+    form,
+    editingId: matches.length === 1 ? matches[0].id : null,
+  }
+}
+const buildChargeAnalytics = (terminalRecords, receivedRecords, selectedMonth) => {
   const terminalByDate = new Map()
   const receivedByDate = new Map()
 
@@ -62,9 +126,8 @@ const buildChargeAnalytics = (terminalRecords, receivedRecords) => {
     }
   })
 
-  const currentMonth = today().slice(0, 7)
   const monthly = Object.entries(byDate).reduce((acc, [date, analytics]) => {
-    if (recordMonth(date) !== currentMonth) return acc
+    if (recordMonth(date) !== selectedMonth) return acc
 
     acc.terminalTotal += analytics.terminalTotal
     acc.receivedTotal += analytics.receivedTotal
@@ -76,7 +139,7 @@ const buildChargeAnalytics = (terminalRecords, receivedRecords) => {
 
   return { byDate, monthly }
 }
-const buildCurrentMonthDays = (terminalRecords, receivedRecords) => {
+const buildMonthDays = (terminalRecords, receivedRecords, selectedMonth) => {
   const terminalByDate = new Map()
   const receivedByDate = new Map()
 
@@ -89,16 +152,18 @@ const buildCurrentMonthDays = (terminalRecords, receivedRecords) => {
     receivedByDate.set(record.date, number(receivedByDate.get(record.date)) + receivedRecordTotal(record))
   })
 
+  const [year, month] = selectedMonth.split('-').map(Number)
   const now = new Date()
-  const dayCount = now.getDate()
+  const isCurrentMonth = selectedMonth === getCurrentMonth()
+  const dayCount = isCurrentMonth ? now.getDate() : new Date(year, month, 0).getDate()
 
   return Array.from({ length: dayCount }, (_, index) => {
-    const date = new Date(now.getFullYear(), now.getMonth(), dayCount - index)
-    const dateKey = date.toISOString().slice(0, 10)
-    const hasTerminal = terminalByDate.has(dateKey)
-    const hasReceived = receivedByDate.has(dateKey)
-    const terminalTotal = number(terminalByDate.get(dateKey))
-    const receivedTotal = number(receivedByDate.get(dateKey))
+    const date = new Date(year, month - 1, dayCount - index)
+    const dayKey = dateKey(date)
+    const hasTerminal = terminalByDate.has(dayKey)
+    const hasReceived = receivedByDate.has(dayKey)
+    const terminalTotal = number(terminalByDate.get(dayKey))
+    const receivedTotal = number(receivedByDate.get(dayKey))
     const commission = terminalTotal - receivedTotal
     const percentage = terminalTotal > 0 ? (commission / terminalTotal) * 100 : 0
     const hasRecords = hasTerminal || hasReceived
@@ -110,15 +175,14 @@ const buildCurrentMonthDays = (terminalRecords, receivedRecords) => {
           ? 'MISSING RHB'
           : 'NO ENTRY'
 
-    return { date: dateKey, terminalTotal, receivedTotal, commission, percentage, hasRecords, hasTerminal, hasReceived, status }
+    return { date: dayKey, terminalTotal, receivedTotal, commission, percentage, hasRecords, hasTerminal, hasReceived, status }
   })
 }
-const buildTerminalAverages = (terminalRecords) => {
-  const currentMonth = today().slice(0, 7)
+const buildTerminalAverages = (terminalRecords, selectedMonth) => {
   const days = new Map()
 
   terminalRecords.forEach((record) => {
-    if (recordMonth(record.date) !== currentMonth) return
+    if (recordMonth(record.date) !== selectedMonth) return
 
     const day = days.get(record.date) || { visa: 0, master: 0, mydebit: 0, total: 0 }
     day.visa += number(record.visaAmount)
@@ -176,7 +240,9 @@ export default function App() {
   const [editingReceivedId, setEditingReceivedId] = useState(null)
   const [syncStatus, setSyncStatus] = useState(hasFirebaseConfig ? 'Loading cloud records...' : 'Add Firebase env to enable sync')
   const [lastSyncedAt, setLastSyncedAt] = useState(readLastSyncedAt)
+  const [selectedMonth, setSelectedMonth] = useState(readSelectedMonth)
   const latestRecords = useRef({ terminalRecords, receivedRecords })
+  const monthOptions = useMemo(buildMonthOptions, [])
 
   const markSynced = () => {
     const syncedAt = new Date()
@@ -225,6 +291,10 @@ export default function App() {
   useEffect(() => {
     latestRecords.current = { terminalRecords, receivedRecords }
   }, [terminalRecords, receivedRecords])
+
+  useEffect(() => {
+    localStorage.setItem(SELECTED_MONTH_KEY, selectedMonth)
+  }, [selectedMonth])
 
   useEffect(() => {
     if (!recordsDoc) return
@@ -348,13 +418,16 @@ export default function App() {
   const visaMasterTotal = useMemo(() => number(terminalForm.visaAmount) + number(terminalForm.masterAmount), [terminalForm])
   const terminalTotal = useMemo(() => visaMasterTotal + number(terminalForm.mydebitAmount), [terminalForm, visaMasterTotal])
   const receivedTotal = useMemo(() => number(receivedForm.cardReceived) + number(receivedForm.mydebitReceived), [receivedForm])
-  const chargeAnalytics = useMemo(() => buildChargeAnalytics(terminalRecords, receivedRecords), [terminalRecords, receivedRecords])
-  const currentMonthDays = useMemo(() => buildCurrentMonthDays(terminalRecords, receivedRecords), [terminalRecords, receivedRecords])
-  const terminalAverages = useMemo(() => buildTerminalAverages(terminalRecords), [terminalRecords])
+  const filteredTerminalRecords = useMemo(() => filterRecordsByMonth(terminalRecords, selectedMonth), [terminalRecords, selectedMonth])
+  const filteredReceivedRecords = useMemo(() => filterRecordsByMonth(receivedRecords, selectedMonth), [receivedRecords, selectedMonth])
+  const chargeAnalytics = useMemo(() => buildChargeAnalytics(terminalRecords, receivedRecords, selectedMonth), [terminalRecords, receivedRecords, selectedMonth])
+  const selectedMonthDays = useMemo(() => buildMonthDays(terminalRecords, receivedRecords, selectedMonth), [terminalRecords, receivedRecords, selectedMonth])
+  const terminalAverages = useMemo(() => buildTerminalAverages(terminalRecords, selectedMonth), [terminalRecords, selectedMonth])
+  const selectedMonthLabel = monthOptions.find((month) => month.value === selectedMonth)?.label || selectedMonth
   const syncLabel = lastSyncedAt ? `✓ Synced ${formatSyncTime(lastSyncedAt)}` : 'Sync pending'
 
   const summary = useMemo(() => {
-    const terminal = terminalRecords.reduce((acc, r) => {
+    const terminal = filteredTerminalRecords.reduce((acc, r) => {
       acc.visa += r.visaAmount
       acc.master += r.masterAmount
       acc.mydebit += r.mydebitAmount
@@ -362,7 +435,7 @@ export default function App() {
       return acc
     }, { visa: 0, master: 0, mydebit: 0, total: 0 })
 
-    const received = receivedRecords.reduce((acc, r) => acc + receivedRecordTotal(r), 0)
+    const received = filteredReceivedRecords.reduce((acc, r) => acc + receivedRecordTotal(r), 0)
     return {
       ...terminal,
       received,
@@ -371,7 +444,7 @@ export default function App() {
       monthlyChargeRate: chargeAnalytics.monthly.chargeRate,
       terminalAverages,
     }
-  }, [terminalRecords, receivedRecords, chargeAnalytics, terminalAverages])
+  }, [filteredTerminalRecords, filteredReceivedRecords, chargeAnalytics, terminalAverages])
 
   const submitTerminal = () => {
     const record = {
@@ -405,13 +478,25 @@ export default function App() {
     setEditingReceivedId(null)
   }
 
+  const updateTerminalDate = (nextDate) => {
+    if (!nextDate) return
+
+    const safeDate = preventFutureDate(nextDate)
+    const nextTerminalForm = terminalFormForDate(terminalRecords, safeDate)
+    setTerminalForm(nextTerminalForm.form)
+    setEditingTerminalId(nextTerminalForm.editingId)
+    setSelectedMonth(recordMonth(safeDate))
+  }
+
   const editTerminal = (record) => {
+    setSelectedMonth(recordMonth(record.date))
     setTerminalForm({ ...record })
     setEditingTerminalId(record.id)
     setActiveTab('terminal')
   }
 
   const editReceived = (record) => {
+    setSelectedMonth(recordMonth(record.date))
     setReceivedForm({
       date: record.date,
       cardReceived: String(cardReceivedAmount(record) || ''),
@@ -435,12 +520,17 @@ export default function App() {
           <div><p className="eyebrow">MAGIC LEAVES RHB TERMINAL SALES</p><h1>{activeTab === 'dashboard' ? 'Dashboard' : activeTab === 'terminal' ? 'Terminal Sales' : 'RHB Received'}</h1></div>
           <div className="topbar-actions">
             <button className="topbar-btn" onClick={syncNow} title="Sync Now"><RefreshCw size={16} /><span>Sync Now</span></button>
-            <div className="date-pill">{new Date().toLocaleDateString('en-MY', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
+            <label className="month-selector" aria-label="Dashboard month">
+              <select value={selectedMonth} onChange={(event) => setSelectedMonth(event.target.value)}>
+                {monthOptions.map((month) => <option key={month.value} value={month.value}>{month.label}</option>)}
+              </select>
+              <ChevronDown size={14} />
+            </label>
             <span className={`sync-status ${lastSyncedAt ? 'synced' : 'pending'}`} title={syncStatus}>{syncLabel}</span>
           </div>
         </header>
 
-        {activeTab === 'dashboard' && <Dashboard summary={summary} currentMonthDays={currentMonthDays} />}
+        {activeTab === 'dashboard' && <Dashboard summary={summary} currentMonthDays={selectedMonthDays} selectedMonthLabel={selectedMonthLabel} />}
         {activeTab === 'terminal' && (
           <TerminalSales
             form={terminalForm}
@@ -449,6 +539,7 @@ export default function App() {
             visaMasterTotal={visaMasterTotal}
             onSubmit={submitTerminal}
             records={terminalRecords}
+            onDateChange={updateTerminalDate}
             chargesByDate={chargeAnalytics.byDate}
             onEdit={editTerminal}
             onDelete={(id) => saveTerminal(terminalRecords.filter((r) => r.id !== id))}
@@ -462,6 +553,8 @@ export default function App() {
             total={receivedTotal}
             onSubmit={submitReceived}
             records={receivedRecords}
+            terminalRecords={terminalRecords}
+            setSelectedMonth={setSelectedMonth}
             chargesByDate={chargeAnalytics.byDate}
             onEdit={editReceived}
             onDelete={(id) => saveReceived(receivedRecords.filter((r) => r.id !== id))}
@@ -481,7 +574,7 @@ export default function App() {
   )
 }
 
-function Dashboard({ summary, currentMonthDays }) {
+function Dashboard({ summary, currentMonthDays, selectedMonthLabel }) {
   return <div className="dashboard-view dashboard-page">
     <div className="dashboard-summary-screen">
       <section className="grid cards">
@@ -496,7 +589,7 @@ function Dashboard({ summary, currentMonthDays }) {
       </section>
     </div>
     <section className="last-days-panel">
-      <h2>June Terminal Sales</h2>
+      <h2>{selectedMonthLabel} Terminal Sales</h2>
       <div className="last-days-list">
         {currentMonthDays.map((row) => (
           <div className="last-day-card" key={row.date}>
@@ -519,15 +612,22 @@ function Dashboard({ summary, currentMonthDays }) {
   </div>
 }
 
-function TerminalSales({ form, setForm, total, visaMasterTotal, onSubmit, records, chargesByDate, onEdit, onDelete, editing }) {
+function TerminalSales({ form, setForm, total, visaMasterTotal, onSubmit, records, onDateChange, chargesByDate, onEdit, onDelete, editing }) {
   const sortedRecords = [...records].sort((a, b) => {
     const dateOrder = String(b.date || '').localeCompare(String(a.date || ''))
     return dateOrder || number(b.id) - number(a.id)
   })
+  const isTodaySelected = form.date >= today()
 
   return <section className="panel terminal-page">
-    <h2>Record daily terminal settlement</h2>
-    <input className="date-input" type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
+    <div className="terminal-entry-header">
+      <h2>Record daily terminal settlement</h2>
+      <div className="terminal-date-nav">
+        <button type="button" className="date-arrow-btn" onClick={() => onDateChange(addDays(form.date, -1))} aria-label="Previous day"><ChevronLeft size={16} /></button>
+        <input className="date-input terminal-date-input" type="date" value={form.date} max={today()} onChange={(e) => onDateChange(e.target.value)} />
+        <button type="button" className="date-arrow-btn" onClick={() => onDateChange(addDays(form.date, 1))} disabled={isTodaySelected} aria-label="Next day"><ChevronRight size={16} /></button>
+      </div>
+    </div>
     <TerminalRow brand={<BrandLogo type="visa" small />} label="Visa" entries="visaEntries" amount="visaAmount" form={form} setForm={setForm} />
     <TerminalRow brand={<BrandLogo type="mastercard" small />} label="Master" entries="masterEntries" amount="masterAmount" form={form} setForm={setForm} />
     <MiniTotalBar label="Visa + Master Total (Auto)" value={visaMasterTotal} />
@@ -539,18 +639,33 @@ function TerminalSales({ form, setForm, total, visaMasterTotal, onSubmit, record
   </section>
 }
 
-function RhbReceived({ form, setForm, total, onSubmit, records, chargesByDate, onEdit, onDelete, onExportBackup, onImportBackup, editing }) {
+function RhbReceived({ form, setForm, total, onSubmit, records, terminalRecords, setSelectedMonth, chargesByDate, onEdit, onDelete, onExportBackup, onImportBackup, editing }) {
   const sortedRecords = [...records].sort((a, b) => {
     const dateOrder = String(b.date || '').localeCompare(String(a.date || ''))
     return dateOrder || number(b.id) - number(a.id)
   })
+  const actualTerminalSales = useMemo(() => terminalSalesForDate(terminalRecords, form.date), [terminalRecords, form.date])
   const fileInputRef = useRef(null)
+  const isTodaySelected = form.date >= today()
+  const updateReceivedDate = (nextDate) => {
+    if (!nextDate) return
+
+    const safeDate = preventFutureDate(nextDate)
+    setForm({ ...form, date: safeDate })
+    setSelectedMonth(recordMonth(safeDate))
+  }
 
   return <section className="panel green-panel received-page">
-    <h2>Record amount received from RHB</h2>
-    <input className="date-input" type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
-    <ReceivedRow brand={<div style={{ display: "flex", gap: "8px", alignItems: "center" }}><BrandLogo type="visa" small /><BrandLogo type="mastercard" small /></div>} label="Visa/Master Received Amount (RM)" field="cardReceived" form={form} setForm={setForm} />
-    <ReceivedRow brand={<BrandLogo type="mydebit" small />} label="MyDebit Received Amount (RM)" field="mydebitReceived" form={form} setForm={setForm} />
+    <div className="received-entry-header">
+      <h2>Record amount received from RHB</h2>
+      <div className="received-date-nav">
+        <button type="button" className="date-arrow-btn" onClick={() => updateReceivedDate(addDays(form.date, -1))} aria-label="Previous day"><ChevronLeft size={16} /></button>
+        <input className="date-input received-date-input" type="date" value={form.date} max={today()} onChange={(e) => updateReceivedDate(e.target.value)} />
+        <button type="button" className="date-arrow-btn" onClick={() => updateReceivedDate(addDays(form.date, 1))} disabled={isTodaySelected} aria-label="Next day"><ChevronRight size={16} /></button>
+      </div>
+    </div>
+    <ReceivedRow brand={<div style={{ display: "flex", gap: "8px", alignItems: "center" }}><BrandLogo type="visa" small /><BrandLogo type="mastercard" small /></div>} label="Visa/Master Received Amount (RM)" field="cardReceived" form={form} setForm={setForm} actualTerminalSales={actualTerminalSales.card} />
+    <ReceivedRow brand={<BrandLogo type="mydebit" small />} label="MyDebit Received Amount (RM)" field="mydebitReceived" form={form} setForm={setForm} actualTerminalSales={actualTerminalSales.mydebit} />
     <TotalBar label="Total Received (Auto)" value={total} tone="green" />
     <button className="primary green" onClick={onSubmit}>{editing ? 'Update Received' : 'Save Received'}</button>
     <HistoryTitle />
@@ -585,11 +700,14 @@ function TerminalRow({ brand, label, entries, amount, form, setForm }) {
   </div>
 }
 
-function ReceivedRow({ brand, label, field, form, setForm }) {
+function ReceivedRow({ brand, label, field, form, setForm, actualTerminalSales }) {
   return <div className="input-row received-row">
     <div className="brand">{brand}</div>
     <span>{label}</span>
-    <input type="text" inputMode="numeric" value={form[field]} onChange={(e) => setForm({ ...form, [field]: e.target.value })} />
+    <div className="received-entry-field">
+      <div className="actual-terminal-chip"><span>Actual Terminal Sales:</span><b>{money.format(actualTerminalSales)}</b></div>
+      <input type="text" inputMode="numeric" value={form[field]} onChange={(e) => setForm({ ...form, [field]: e.target.value })} />
+    </div>
   </div>
 }
 
